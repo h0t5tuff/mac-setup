@@ -112,6 +112,7 @@ amd64() {
 # │      ⚡ Default Env            │
 # ╰───────────────────────────────╯
 export PIPX_DEFAULT_PYTHON=/opt/homebrew/opt/python@3.12/bin/python3.12
+export PATH="$PATH:/Users/tensor/.local/bin"
 alias jn='jupyter-notebook'
 alias v="source ~/venvs/v/bin/activate" 
 if [[ -o interactive ]]; then
@@ -163,10 +164,3 @@ path=("$BOBJ" "$COMPILED" "$BACONHOME" $path)
 typeset -gU path
 
 # BACONCALIBRATIONSIMULATION 
-
-
-
-
-
-# Created by `pipx` on 2026-04-17 08:50:23
-export PATH="$PATH:/Users/tensor/.local/bin"
