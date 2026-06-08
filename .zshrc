@@ -71,12 +71,9 @@ arm64() {
   # Homebrew
   eval "$(/opt/homebrew/bin/brew shellenv)"
 
-  #source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-  #source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
   # Python
-  path=(/opt/homebrew/opt/python@3.12/libexec/bin /opt/homebrew/opt/python@3.12/bin $path)
-  export Python3_EXECUTABLE="/opt/homebrew/opt/python@3.12/bin/python3.12"
+  path=(/opt/homebrew/opt/python@3.14/libexec/bin /opt/homebrew/opt/python@3.14/bin $path)
+  export Python3_EXECUTABLE="/opt/homebrew/opt/python@3.14/bin/python3.14"
 
   # ROOT
   pushd /opt/homebrew > /dev/null
@@ -111,7 +108,7 @@ amd64() {
 # ╭───────────────────────────────╮
 # │      ⚡ Default Env            │
 # ╰───────────────────────────────╯
-export PIPX_DEFAULT_PYTHON=/opt/homebrew/opt/python@3.12/bin/python3.12
+export PIPX_DEFAULT_PYTHON=/opt/homebrew/opt/python@3.14/bin/python3.14
 export PATH="$PATH:/Users/tensor/.local/bin"
 alias jn='jupyter-notebook'
 alias v="source ~/venvs/v/bin/activate" 
@@ -163,4 +160,12 @@ export COMPILED="$HOME/Documents/ROOT/bacon2Data/compiled"
 path=("$BOBJ" "$COMPILED" "$BACONHOME" $path)
 typeset -gU path
 
-# BACONCALIBRATIONSIMULATION 
+# BACONCALIBRATIONSIMULATION
+
+# ╭───────────────────────────────╮
+# │         🐍 Python             │
+# ╰───────────────────────────────╯
+if [[ -d /opt/homebrew/opt/python@3.14/bin ]]; then
+  path=(/opt/homebrew/opt/python@3.14/libexec/bin /opt/homebrew/opt/python@3.14/bin $path)
+  typeset -gU path
+fi 
