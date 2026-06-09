@@ -1,166 +1,473 @@
 #!/usr/bin/env zsh
-# Location: ~/sanity
+# sanity — system status check for the zshell-setup environment
+# Lives in the repo; symlinked as ~/sanity and ~/.local/bin/sanity.
+#
+#   sanity            all local checks (incl. runtime tests)
+#   sanity --quick    skip slow runtime tests (ROOT macro, PyROOT, G4 datasets, brew outdated)
+#   sanity --net      also test SSH connectivity (github / daq / nersc)
 
 emulate -L zsh
-setopt pipefail
-setopt nonomatch
+setopt pipefail nonomatch
 
-# 🧪 Mode selection
-mode="brief"
-case "${1:-}" in
-  ""|--brief) mode="brief" ;;
-  --full) mode="full" ;;
-  *) echo "Usage: sanity [--brief|--full]"; exit 2 ;;
-esac
+# ╭───────────────────────────────╮
+# │           ⚙️ Options           │
+# ╰───────────────────────────────╯
+typeset -i quick=0 net=0
+typeset arg
+for arg in "$@"; do
+  case $arg in
+    -q|--quick) quick=1 ;;
+    -n|--net)   net=1 ;;
+    -h|--help)
+      cat <<'EOF'
+sanity — system status check for the zshell-setup environment
 
-want_py="/opt/homebrew/opt/python@3.12/libexec/bin/python3"
-
-hr() { [[ "$mode" == "full" ]] && echo -e "\n🔹───────────────────────────────────────────────────────"; }
-section() { [[ "$mode" == "full" ]] && { hr; echo "📦 $1"; } }
-
-# 🔍 PATH analysis
-typeset -a path_entries
-path_entries=(${(s/:/)PATH})
-typeset -A seen
-typeset -a missing dups
-
-for p in $path_entries; do
-  [[ -z "$p" ]] && continue
-  [[ -d "$p" ]] || missing+=("$p")
-  (( seen[$p]++ )) && dups+=("$p")
+usage: sanity [-q|--quick] [-n|--net]
+  -q, --quick   skip slow runtime tests (ROOT macro, PyROOT, Geant4 datasets, brew outdated)
+  -n, --net     also test SSH connectivity (github, daq, nersc)
+EOF
+      exit 0 ;;
+    *) print -u2 "sanity: unknown option '$arg' (try --help)"; exit 2 ;;
+  esac
 done
 
-typeset -a ignore_missing=(
-  "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin"
-  "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin"
-  "/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin"
-  "/opt/pmk/env/global/bin"
-)
-missing=(${missing:#(${(j:|:)~ignore_missing})})
+# ╭───────────────────────────────╮
+# │       🧮 Tally & helpers       │
+# ╰───────────────────────────────╯
+typeset -i n_pass=0 n_warn=0 n_fail=0
+typeset -a problems
 
-# 🐍 Python
-found_py=$(which python3 2>/dev/null)
-py_version=$(python3 -V 2>/dev/null)
-py_exe=$(python3 -c 'import sys; print(sys.executable)' 2>/dev/null)
+pass()    { print -P "  %F{green}✅%f $1"; (( ++n_pass )); }
+warn()    { print -P "  %F{yellow}⚠️%f  $1"; (( ++n_warn )); problems+=("⚠️  $1"); }
+fail()    { print -P "  %F{red}❌%f $1"; (( ++n_fail )); problems+=("❌ $1"); }
+info()    { print -P "  %F{cyan}·%f  $1"; }
+section() { print -P "\n%F{blue}%B── $1%b%f"; }
 
-# 📦 pip & pipx
-pipx_path=$(which pipx 2>/dev/null)
-pipx_default_py=$(pipx environment 2>/dev/null | awk -F= '/PIPX_DEFAULT_PYTHON/{print $2}' | head -n1)
-pipx_apps_py=$(pipx list 2>/dev/null | awk '/installed using Python/ {print $NF}' | head -n1)
-
-# 🍺 Homebrew
-brew_path=$(which brew 2>/dev/null)
-brew_prefix=$(brew --prefix 2>/dev/null)
-brew_ver=$(brew --version 2>/dev/null | head -n1)
-
-# 🧬 Physics vars
-ROOTSYS_v="${ROOTSYS:-}"
-GEANT4_BASE_v="${GEANT4_BASE:-}"
-Geant4_DIR_v="${Geant4_DIR:-}"
-REMAGE_PREFIX_v="${REMAGE_PREFIX:-}"
-BXDECAY0_PREFIX_v="${BXDECAY0_PREFIX:-}"
-
-# 🧾 Brief mode summary
-if [[ "$mode" == "brief" ]]; then
-  py_ok=$([[ "$found_py" == "$want_py" ]] && echo 1 || echo 0)
-  pipx_ok=$([[ -n "$pipx_path" ]] && echo 1 || echo 0)
-  g4_ok=$([[ -n "$GEANT4_BASE_v" ]] && echo 1 || echo 0)
-  root_ok=$([[ -n "$ROOTSYS_v" ]] && echo 1 || echo 0)
-
-  echo -e "🧠 \033[1mSanity\033[0m  ZSH=$ZSH_VERSION  ARCH=$(uname -m)  FLAVOR=${ENV_FLAVOR:-unset}"
-  echo -e "📂 PATH: missing_dirs=${#missing}  dup_entries=${#${(u)dups}}"
-  echo -e "🐍 Python: ${found_py:-not found}  ${py_version:-}"
-  echo -e "📦 Pipx: ${pipx_path:-not found}  default=${pipx_default_py:-?}  app=${pipx_apps_py:-?}"
-  echo -e "🍺 Brew: ${brew_path:-not found}  prefix=${brew_prefix:-?}"
-
-  echo -n "✅ Status: "
-  [[ "$py_ok" -eq 1 ]] && echo -n "PY=ok " || echo -n "PY=check "
-  [[ "$pipx_ok" -eq 1 ]] && echo -n "PIPX=ok " || echo -n "PIPX=missing "
-  [[ "$g4_ok" -eq 1 ]] && echo -n "G4=ok " || echo -n "G4=unset "
-  [[ "$root_ok" -eq 1 ]] && echo -n "ROOT=ok " || echo -n "ROOT=unset "
-  (( ${#missing} == 0 )) && echo "PATH=ok" || echo "PATH=warn"
-
-  exit 0
-fi
-
-# 🧾 Full mode
-section "🖥️ Shell"
-echo "ZSH:       $ZSH_VERSION"
-echo "ARCH:      $(uname -m)"
-echo "FLAVOR:    ${ENV_FLAVOR:-unset}"
-echo "PWD:       $PWD"
-
-section "📂 PATH Entries"
-for i in {1..${#path_entries}}; do
-  printf "%2d. %s\n" $i "$path_entries[$i]"
-done
-
-if (( ${#missing} )); then
-  echo -e "\n⚠️  Missing PATHs:"
-  print -rl -- $missing | sed 's/^/  - /'
-else
-  echo "✅ All PATH entries exist"
-fi
-
-if (( ${#dups} )); then
-  echo -e "\n⚠️  Duplicate PATH entries:"
-  print -rl -- ${(u)dups} | sed 's/^/  - /'
-else
-  echo "✅ No duplicate PATH entries"
-fi
-
-section "🐍 Python"
-echo "which: $found_py"
-echo "version: $py_version"
-echo "sys.executable: $py_exe"
-if [[ "$found_py" == "$want_py" ]]; then
-  echo "✅ python3 matches configured version"
-else
-  echo "⚠️  python3 mismatch"
-  echo "  expected: $want_py"
-  echo "  current : $found_py"
-fi
-
-section "📦 Pipx & Pip"
-echo "pipx: $pipx_path"
-echo "pipx default python: ${pipx_default_py:-unknown}"
-echo "pipx installed apps use: ${pipx_apps_py:-unknown}"
-[[ "$pipx_default_py" != "$py_exe" ]] && echo "⚠️  pipx uses different python than shell"
-
-section "🔧 Build & Runtime Paths"
-for var in CMAKE_PREFIX_PATH PKG_CONFIG_PATH DYLD_FALLBACK_LIBRARY_PATH; do
-  echo "$var:"
-  if [[ -z "${(P)var}" ]]; then
-    echo "  unset"
+check_var() {  # check_var <NAME> [warn]
+  typeset name=$1 sev=${2:-fail} val
+  val=${(P)name}
+  if [[ -n $val ]]; then
+    pass "$name = $val"
+  elif [[ $sev == warn ]]; then
+    warn "$name unset"
   else
-    print -rl -- ${(s/:/)${(P)var}} | sed 's/^/  - /'
+    fail "$name unset (zshrc not sourced?)"
+  fi
+}
+
+check_dir() {  # check_dir <label> <path> [warn]
+  typeset label=$1 d=$2 sev=${3:-fail}
+  if [[ -z $d ]]; then
+    [[ $sev == warn ]] && warn "$label: unset" || fail "$label: unset (zshrc not sourced?)"
+  elif [[ -d $d ]]; then
+    pass "$label: ${d/#$HOME/~}"
+  else
+    [[ $sev == warn ]] && warn "$label missing: $d" || fail "$label missing: $d"
+  fi
+}
+
+check_cmd() {  # check_cmd <cmd> [warn]
+  typeset c=$1 sev=${2:-fail} p
+  p=$(command -v $c)
+  if [[ -n $p ]]; then
+    pass "$c → $p"
+  elif [[ $sev == warn ]]; then
+    warn "$c not found"
+  else
+    fail "$c not found"
+  fi
+}
+
+check_link() {  # check_link <link> <expected target>
+  typeset link=$1 target=$2
+  if [[ ! -e $link ]]; then
+    fail "${link/#$HOME/~} missing"
+  elif [[ ${link:A} == ${target:A} ]]; then
+    pass "${link/#$HOME/~} → ${target/#$HOME/~}"
+  else
+    fail "${link/#$HOME/~} → ${${link:A}/#$HOME/~} (expected ${target/#$HOME/~})"
+  fi
+}
+
+# ╭───────────────────────────────╮
+# │   📜 Expectations from repo    │
+# ╰───────────────────────────────╯
+typeset repo=${0:A:h}
+typeset zshrc=$repo/.zshrc sshconf=$repo/config
+typeset hb_python='' want_pyver=''
+if [[ -f $zshrc ]]; then
+  hb_python=$(grep -m1 '^HOMEBREW_PYTHON=' $zshrc | cut -d= -f2)
+  want_pyver=${hb_python##*@}
+fi
+
+print -P "%B🧠 sanity%b — $(date '+%Y-%m-%d %H:%M')   repo: ${repo/#$HOME/~}"
+
+# ╭───────────────────────────────╮
+# │            Checks             │
+# ╰───────────────────────────────╯
+section "🖥️  Shell & flavor"
+info "zsh $ZSH_VERSION · $(uname -m) · macOS $(sw_vers -productVersion 2>/dev/null)"
+typeset arch=$(uname -m)
+if [[ -z ${ENV_FLAVOR:-} ]]; then
+  fail "ENV_FLAVOR unset — .zshrc env not loaded in this shell"
+elif [[ $arch == arm64 && $ENV_FLAVOR == 💻 ]] || [[ $arch == x86_64 && $ENV_FLAVOR == 🖥️ ]]; then
+  pass "flavor $ENV_FLAVOR matches arch $arch"
+else
+  warn "flavor $ENV_FLAVOR vs arch $arch — check arm64()/amd64()"
+fi
+
+section "🔗 Dotfile symlinks"
+check_link ~/.zshrc $repo/.zshrc
+check_link ~/.ssh/config $repo/config
+check_link ~/sanity $repo/sanity
+check_link ~/.local/bin/sanity $repo/sanity
+[[ -x $repo/sanity ]] && pass "sanity is executable" || fail "sanity not executable (chmod +x)"
+[[ -n $(git -C $repo status --porcelain 2>/dev/null) ]] && info "repo has uncommitted changes"
+
+section "📂 PATH health"
+typeset -a entries missing dups
+typeset -A seen
+typeset p
+entries=(${(s/:/)PATH})
+for p in $entries; do
+  [[ -z $p ]] && continue
+  if (( ${seen[$p]:-0} )); then dups+=($p); fi
+  seen[$p]=1
+  case $p in
+    /var/run/com.apple.security.cryptexd/*|/opt/pmk/*|/pkg/*) continue ;;
+    */Claude/local-agent-mode-sessions/*) continue ;;
+  esac
+  [[ -d $p ]] || missing+=($p)
+done
+info "${#entries} entries"
+if (( ${#missing} )); then
+  warn "missing dirs on PATH: ${(j:, :)missing}"
+else
+  pass "all PATH entries exist"
+fi
+if (( ${#dups} )); then
+  warn "duplicate PATH entries: ${(j:, :)${(u)dups}}"
+else
+  pass "no duplicate PATH entries"
+fi
+typeset -a want_on_path
+want_on_path=("$HOME/.local/bin")
+[[ -n $hb_python ]]           && want_on_path+=("$hb_python/libexec/bin")
+[[ -n ${HDF5_ROOT:-} ]]       && want_on_path+=("$HDF5_ROOT/bin")
+[[ -n ${GEANT4_BASE:-} ]]     && want_on_path+=("$GEANT4_BASE/bin")
+[[ -n ${REMAGE_PREFIX:-} ]]   && want_on_path+=("$REMAGE_PREFIX/bin")
+[[ -n ${BOBJ:-} ]]            && want_on_path+=("$BOBJ")
+[[ -n ${COMPILED:-} ]]        && want_on_path+=("$COMPILED")
+for p in $want_on_path; do
+  if (( ${entries[(Ie)$p]} )); then
+    pass "on PATH: ${p/#$HOME/~}"
+  else
+    warn "not on PATH: ${p/#$HOME/~}"
   fi
 done
 
-section "🧬 Physics Stack"
-echo "ROOTSYS:         $ROOTSYS_v"
-echo "GEANT4_BASE:     $GEANT4_BASE_v"
-echo "Geant4_DIR:      $Geant4_DIR_v"
-echo "REMAGE_PREFIX:   $REMAGE_PREFIX_v"
-echo "BXDECAY0_PREFIX: $BXDECAY0_PREFIX_v"
+section "🍺 Homebrew"
+if ! command -v brew >/dev/null; then
+  fail "brew not found"
+else
+  typeset bprefix=$(brew --prefix)
+  pass "$(brew --version | head -1) @ $bprefix"
+  if [[ ${ENV_FLAVOR:-} == 💻 && $bprefix != /opt/homebrew ]]; then
+    warn "flavor 💻 but brew prefix is $bprefix"
+  elif [[ ${ENV_FLAVOR:-} == 🖥️ && $bprefix != /usr/local ]]; then
+    warn "flavor 🖥️ but brew prefix is $bprefix"
+  fi
+  if (( ! quick )); then
+    typeset -i outdated=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --quiet 2>/dev/null | wc -l)
+    if (( outdated )); then
+      info "$outdated outdated formula(e) — alias: werb"
+    else
+      pass "no outdated formulae"
+    fi
+  fi
+fi
 
-section "🔍 Tool Checks"
-for tool in brew root geant4-config cmake pkg-config; do
-  echo "$tool: $(command -v $tool 2>/dev/null || echo not found)"
+section "🐍 Python (expect $want_pyver)"
+check_dir "HOMEBREW_PYTHON" "$hb_python"
+typeset py3=$(command -v python3)
+if [[ -z $py3 ]]; then
+  fail "python3 not found"
+else
+  typeset pyver=$(python3 -V 2>&1)
+  typeset pyexe=$(python3 -c 'import sys; print(sys.executable)' 2>/dev/null)
+  info "python3 → $py3"
+  info "sys.executable → $pyexe"
+  if [[ -z $want_pyver ]]; then
+    warn "could not parse HOMEBREW_PYTHON from .zshrc — skipping version match"
+  elif [[ $pyver == "Python $want_pyver."* ]]; then
+    pass "$pyver matches python@$want_pyver"
+  else
+    fail "$pyver ≠ expected python@$want_pyver"
+  fi
+  if [[ -n $hb_python && ${py3:A} == ${hb_python:A}/* ]]; then
+    pass "python3 resolves under HOMEBREW_PYTHON"
+  else
+    warn "python3 not under HOMEBREW_PYTHON — PATH shadowing?"
+  fi
+  if [[ ${Python3_EXECUTABLE:-} == $hb_python/bin/python3 ]]; then
+    pass "Python3_EXECUTABLE wired for cmake"
+  else
+    warn "Python3_EXECUTABLE = ${Python3_EXECUTABLE:-unset}"
+  fi
+fi
+if python3 -m pip --version >/dev/null 2>&1; then
+  pass "pip OK ($(python3 -m pip --version 2>/dev/null | awk '{print $2}'))"
+else
+  fail "python3 -m pip broken"
+fi
+[[ -f ~/venvs/v/bin/activate ]] && pass "venv 'v' present (alias v)" || warn "~/venvs/v missing (alias v will fail)"
+check_cmd jupyter-notebook warn
+
+section "📦 pipx"
+if ! command -v pipx >/dev/null; then
+  warn "pipx not found"
+else
+  pass "pipx → $(command -v pipx)"
+  if [[ -z ${PIPX_DEFAULT_PYTHON:-} ]]; then
+    warn "PIPX_DEFAULT_PYTHON unset"
+  elif [[ ! -x $PIPX_DEFAULT_PYTHON ]]; then
+    fail "PIPX_DEFAULT_PYTHON missing: $PIPX_DEFAULT_PYTHON"
+  else
+    pass "PIPX_DEFAULT_PYTHON = $PIPX_DEFAULT_PYTHON"
+  fi
+  typeset -a app_pys
+  app_pys=(${(f)"$(pipx list 2>/dev/null | grep -Eo 'Python 3[0-9.]*' | sort -u)"})
+  if (( ${#app_pys} )); then
+    typeset v bad=0
+    for v in $app_pys; do
+      [[ -n $want_pyver && $v == "Python $want_pyver."* ]] || bad=1
+    done
+    if (( bad )); then
+      warn "pipx apps on other python: ${(j:, :)app_pys} — pipx reinstall-all"
+    else
+      pass "pipx apps use Python $want_pyver"
+    fi
+  else
+    info "no pipx apps installed"
+  fi
+fi
+
+section "⚛️  ROOT"
+check_var ROOTSYS
+if command -v root-config >/dev/null; then
+  pass "ROOT $(root-config --version)"
+else
+  fail "root-config not found"
+fi
+check_dir "ROOT_DIR (cmake)" "${ROOT_DIR:-}" warn
+if (( ! quick )) && command -v root >/dev/null; then
+  if root -l -b -q -e 'gSystem->Exit(0);' >/dev/null 2>&1; then
+    pass "root runs (batch macro)"
+  else
+    fail "root failed to run a batch macro"
+  fi
+  if python3 -c 'import ROOT' >/dev/null 2>&1; then
+    pass "PyROOT imports in python3"
+  else
+    warn "PyROOT not importable (Homebrew ROOT may target another python)"
+  fi
+fi
+
+section "☢️  Geant4"
+check_dir "GEANT4_BASE" "${GEANT4_BASE:-}"
+if command -v geant4-config >/dev/null; then
+  pass "geant4-config $(geant4-config --version)"
+  if (( ! quick )); then
+    typeset g4data=$(geant4-config --check-datasets 2>/dev/null)
+    typeset -i g4miss=$(print -r -- "$g4data" | grep -ciE 'notfound|not found|missing')
+    if [[ -z $g4data ]]; then
+      warn "could not query Geant4 datasets"
+    elif (( g4miss )); then
+      fail "$g4miss Geant4 dataset(s) missing — geant4-config --install-datasets"
+    else
+      pass "all Geant4 datasets installed"
+    fi
+  fi
+else
+  fail "geant4-config not found"
+fi
+if [[ -n ${Geant4_DIR:-} && -f ${Geant4_DIR}/Geant4Config.cmake ]]; then
+  pass "Geant4Config.cmake present"
+else
+  warn "Geant4Config.cmake not found (Geant4_DIR = ${Geant4_DIR:-unset})"
+fi
+[[ -n ${G4VIS_DEFAULT_DRIVER:-} ]] && pass "G4VIS_DEFAULT_DRIVER = $G4VIS_DEFAULT_DRIVER" || warn "G4VIS_DEFAULT_DRIVER unset"
+
+section "🗄️  HDF5"
+check_dir "HDF5_ROOT" "${HDF5_ROOT:-}"
+check_dir "HDF5_DIR (cmake)" "${HDF5_DIR:-}" warn
+check_cmd h5dump warn
+if pkg-config --exists hdf5 2>/dev/null; then
+  pass "pkg-config hdf5 $(pkg-config --modversion hdf5)"
+else
+  typeset -a h5pcs
+  h5pcs=(${HDF5_ROOT:-/nonexistent}/lib/pkgconfig/*.pc(N))
+  if (( ${#h5pcs} )); then
+    info "hdf5 .pc files present: ${(j:, :)${(@)h5pcs:t}} (pkg-config can't resolve 'hdf5')"
+  else
+    info "no .pc files under HDF5_ROOT (fine — cmake uses HDF5_DIR)"
+  fi
+fi
+
+section "🧬 BxDecay0"
+check_dir "BXDECAY0_PREFIX" "${BXDECAY0_PREFIX:-}"
+if pkg-config --exists bxdecay0 2>/dev/null; then
+  pass "pkg-config bxdecay0 $(pkg-config --modversion bxdecay0)"
+else
+  typeset -a pcs
+  pcs=(${BXDECAY0_PREFIX:-/nonexistent}/lib/pkgconfig/*.pc(N))
+  if (( ${#pcs} )); then
+    warn "bxdecay0 not visible to pkg-config (have: ${(j:, :)${(@)pcs:t}})"
+  else
+    warn "no .pc files under BXDECAY0_PREFIX/lib/pkgconfig"
+  fi
+fi
+
+section "🔮 remage"
+check_dir "REMAGE_PREFIX" "${REMAGE_PREFIX:-}"
+if command -v remage >/dev/null; then
+  if remage --version >/dev/null 2>&1; then
+    pass "remage $(remage --version 2>/dev/null | head -1)"
+  else
+    warn "remage found but --version failed"
+  fi
+else
+  warn "remage not on PATH"
+fi
+
+section "🥓 bacon2Data"
+check_dir "BACONHOME" "${BACONHOME:-}" warn
+check_dir "BOBJ" "${BOBJ:-}" warn
+check_dir "COMPILED" "${COMPILED:-}" warn
+
+section "🔧 Build toolchain"
+check_cmd cmake
+check_cmd pkg-config
+check_cmd git
+if xcode-select -p >/dev/null 2>&1; then
+  pass "Xcode CLT @ $(xcode-select -p)"
+else
+  fail "Xcode Command Line Tools missing (xcode-select --install)"
+fi
+typeset var val entry
+typeset -a parts bad
+for var in CMAKE_PREFIX_PATH PKG_CONFIG_PATH; do
+  val=${(P)var}
+  if [[ -z $val ]]; then
+    warn "$var unset"
+    continue
+  fi
+  if [[ $var == CMAKE_PREFIX_PATH ]]; then parts=(${(s/;/)val}); else parts=(${(s/:/)val}); fi
+  bad=()
+  for entry in $parts; do
+    [[ -z $entry || -d $entry ]] || bad+=($entry)
+  done
+  if (( ${#bad} )); then
+    warn "$var has missing dirs: ${(j:, :)bad}"
+  else
+    pass "$var ok (${#parts} entries)"
+  fi
 done
+# DYLD_* never survives into a script (macOS SIP strips it when launching
+# /bin/zsh), so verify the fallback lib dirs from .zshrc's recipe instead
+typeset -a dyld_libs
+dyld_libs=()
+[[ -n ${HDF5_ROOT:-} ]]        && dyld_libs+=("$HDF5_ROOT/lib")
+[[ -n ${GEANT4_BASE:-} ]]      && dyld_libs+=("$GEANT4_BASE/lib")
+[[ -n ${BXDECAY0_PREFIX:-} ]]  && dyld_libs+=("$BXDECAY0_PREFIX/lib")
+[[ -n ${REMAGE_PREFIX:-} ]]    && dyld_libs+=("$REMAGE_PREFIX/lib")
+bad=()
+for entry in $dyld_libs; do
+  [[ -d $entry ]] || bad+=($entry)
+done
+if (( ${#bad} )); then
+  warn "DYLD fallback lib dirs missing: ${(j:, :)bad}"
+else
+  pass "DYLD fallback lib dirs exist (${#dyld_libs} dirs; var itself is SIP-stripped in scripts)"
+fi
 
-section "🧪 Runtime Tests"
-command -v root >/dev/null && root -b -q -e 'gSystem->Exit(0);' >/dev/null 2>&1 \
-  && echo "✅ root runs" || echo "❌ root failed"
-command -v geant4-config >/dev/null && geant4-config --version >/dev/null 2>&1 \
-  && echo "✅ geant4-config runs" || echo "❌ geant4-config failed"
+section "🔐 SSH"
+typeset perms=$(stat -f '%Lp' ~/.ssh 2>/dev/null)
+if [[ $perms == 700 ]]; then
+  pass "~/.ssh perms 700"
+else
+  warn "~/.ssh perms $perms (want 700)"
+fi
+# do the Host * global defaults actually apply?
+typeset eff=$(ssh -G github.com 2>/dev/null)
+if [[ $eff == *"controlmaster auto"* ]]; then
+  pass "global Host * defaults apply (ControlMaster auto)"
+else
+  fail "global Host * defaults NOT applying — check 'Host *' line in config"
+fi
+typeset -a idfiles
+idfiles=(${(f)"$(awk '/^[[:space:]]*IdentityFile/ {print $2}' $sshconf 2>/dev/null)"})
+typeset f real
+for f in ${(u)idfiles}; do
+  real=${f/#\~/$HOME}
+  if [[ ! -f $real ]]; then
+    fail "key missing: $f"
+    continue
+  fi
+  perms=$(stat -f '%Lp' $real)
+  if [[ $perms == 600 ]]; then
+    pass "key $f (600)"
+  else
+    warn "key $f perms $perms (want 600)"
+  fi
+done
+if ssh-add -l >/dev/null 2>&1; then
+  info "ssh-agent: $(ssh-add -l 2>/dev/null | wc -l | tr -d ' ') key(s) loaded"
+else
+  info "ssh-agent: no keys loaded (Keychain loads on demand)"
+fi
+typeset -a socks
+socks=(~/.ssh/cm-*(N=))
+(( ${#socks} )) && info "${#socks} live ControlMaster socket(s)"
 
+if (( net )); then
+  section "🌐 SSH connectivity (--net)"
+  typeset gh_out=$(ssh -T -o BatchMode=yes -o ConnectTimeout=8 git@github.com 2>&1)
+  if [[ $gh_out == *"successfully authenticated"* ]]; then
+    pass "github.com auth OK"
+  else
+    fail "github.com auth failed: ${gh_out%%$'\n'*}"
+  fi
+  if ssh -o BatchMode=yes -o ConnectTimeout=8 daq true 2>/dev/null; then
+    pass "daq reachable"
+  else
+    fail "daq unreachable or auth failed"
+  fi
+  if ssh -o BatchMode=yes -o ConnectTimeout=8 nersc true 2>/dev/null; then
+    pass "nersc reachable"
+  else
+    warn "nersc unreachable (sshproxy/MFA may be needed)"
+  fi
+fi
+
+# ╭───────────────────────────────╮
+# │          🧾 Summary           │
+# ╰───────────────────────────────╯
 section "🧾 Summary"
-(( ${#missing} == 0 )) && echo "✅ PATH: ok" || echo "⚠️  PATH: ${#missing} missing dirs"
-[[ "$found_py" == "$want_py" ]] && echo "✅ PYTHON: ok" || echo "⚠️  PYTHON: mismatch"
-[[ -n "$pipx_path" ]] && echo "✅ PIPX: present" || echo "⚠️  PIPX: missing"
-[[ -n "$GEANT4_BASE_v" ]] && echo "✅ GEANT4: set" || echo "⚠️  GEANT4: unset"
-[[ -n "$ROOTSYS_v" ]] && echo "✅ ROOT: set" || echo "⚠️  ROOT: unset"
-
-hr
-echo "✅ Sanity check complete."
+print -P "  %F{green}✅ $n_pass passed%f   %F{yellow}⚠️  $n_warn warnings%f   %F{red}❌ $n_fail failures%f"
+if (( ${#problems} )); then
+  print
+  typeset prob
+  for prob in $problems; do
+    print -r -- "  $prob"
+  done
+fi
+print
+if (( n_fail )); then
+  print -P "%F{red}%B❌ not sane — $n_fail failure(s).%b%f"
+  exit 1
+elif (( n_warn )); then
+  print -P "%F{yellow}%B⚠️  mostly sane — $n_warn warning(s).%b%f"
+else
+  print -P "%F{green}%B✅ all systems go — sane.%b%f"
+fi
