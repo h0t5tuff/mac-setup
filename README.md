@@ -1,31 +1,125 @@
-What you do is simply put:
+# zshell-setup
 
-> - .zshrc in $HOME dir
-> - config in $HOME/.ssh dir
-> - sanity in $HOME and $HOME/.local/bin dirs
+My macOS shell environment, version-controlled. Three files live in this repo
+and get **symlinked** into place — so any edit here is live immediately, and
+every machine stays in sync with `git pull`.
 
---------------this is how I did it and i keep it uptodate-----------
+| repo file | symlinked to                       | what it is                                          |
+| --------- | ---------------------------------- | --------------------------------------------------- |
+| `.zshrc`  | `~/.zshrc`                         | prompt, aliases, Homebrew/Python, physics stack env  |
+| `config`  | `~/.ssh/config`                    | SSH defaults + hosts (github, daq, nersc)            |
+| `sanity`  | `~/sanity`, `~/.local/bin/sanity`  | full system health check (run it any time)           |
 
-> cd $HOME/Documents/GitHub/
->
-> git clone https://github.com/h0t5tuff/zshell-setup.git>
+Works on Apple Silicon and Intel — `.zshrc` auto-detects the arch and runs
+`arm64` (💻) or `amd64` (🖥️) accordingly.
 
-### for .zshrc:
+---
 
-> mv ~/.zshrc ~/.zshrc.backup && rm -i ~/.zshrc
->
-> ln -s ~/Documents/GitHub/zshell-setup/.zshrc ~/.zshrc
+## Setting up a new Mac
 
-### for config:
+### 1. Prerequisites
 
-> mv ~/.ssh/config ~/.ssh/config.backup && rm -i ~/.ssh/config
->
-> ln -s ~/Documents/GitHub/zshell-setup/.ssh/config ~/.ssh/config
+```sh
+xcode-select --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
 
-### for sanity:
+### 2. Clone and symlink
 
-> ln -s ~/Documents/GitHub/zshell-setup/sanity ~/sanity
->
-> ln -s ~/sanity ~/.local/bin/sanity
->
-> chmod +x ~/sanity
+```sh
+mkdir -p ~/Documents/GitHub ~/.ssh ~/.local/bin
+chmod 700 ~/.ssh
+cd ~/Documents/GitHub
+git clone https://github.com/h0t5tuff/zshell-setup.git
+REPO=~/Documents/GitHub/zshell-setup
+
+# back up real files (not symlinks) if they exist
+[ -f ~/.zshrc ]      && [ ! -L ~/.zshrc ]      && mv ~/.zshrc ~/.zshrc.backup
+[ -f ~/.ssh/config ] && [ ! -L ~/.ssh/config ] && mv ~/.ssh/config ~/.ssh/config.backup
+
+ln -sfn "$REPO/.zshrc" ~/.zshrc
+ln -sfn "$REPO/config" ~/.ssh/config
+ln -sfn "$REPO/sanity" ~/sanity
+ln -sfn ~/sanity       ~/.local/bin/sanity
+chmod +x "$REPO/sanity"
+```
+
+### 3. Homebrew packages
+
+```sh
+brew install python@3.14 root cmake pkgconf gsl pipx qt xerces-c
+```
+
+| formula          | why                                                      |
+| ---------------- | -------------------------------------------------------- |
+| `python@3.14`    | the pinned shell python (`HOMEBREW_PYTHON` in `.zshrc`)   |
+| `root`           | CERN ROOT — `r` helper, PyROOT, bacon2Data                |
+| `cmake`          | building the physics stack                                |
+| `pkgconf` + `gsl`| pkg-config and BxDecay0's GSL dependency                  |
+| `qt` + `xerces-c`| Geant4 build/runtime deps (OGLSQt vis driver)             |
+
+### 4. Python tooling
+
+Open a **new terminal first** (so python3 = 3.14 and `PIPX_DEFAULT_PYTHON`
+apply), then:
+
+```sh
+pipx install notebook jupyterlab black   # `jn` alias → jupyter-notebook
+python3 -m venv ~/venvs/v                # `v` alias → activate this venv
+```
+
+### 5. SSH keys
+
+`config` expects one dedicated key per host. Either copy the keys over from
+the old Mac (keep perms!) or generate fresh ones and register the new pubkeys:
+
+```sh
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_daq
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_nersc
+chmod 600 ~/.ssh/id_ed25519_*
+```
+
+- **github** → GitHub → Settings → SSH and GPG keys → paste `id_ed25519_github.pub`
+- **daq** → `ssh-copy-id -i ~/.ssh/id_ed25519_daq.pub daq` (password once)
+- **nersc** → follow NERSC's sshproxy/MFA docs for Perlmutter
+
+Hosts *not* listed in `config` fall back to ssh's default keys + agent.
+
+### 6. Physics stack (source builds)
+
+`.zshrc` hardcodes these install prefixes — build each project into exactly
+these paths and everything (PATH, `CMAKE_PREFIX_PATH`, pkg-config, dyld) lines
+up. `sanity` will tell you what's missing.
+
+| project        | expected install prefix                     |
+| -------------- | ------------------------------------------- |
+| HDF5 1.14.3    | `~/Documents/HDF5/install-hdf5-1_14_3`      |
+| Geant4 11.4.0  | `~/Documents/GEANT4/install-v11.4.0`        |
+| BxDecay0       | `~/Documents/BXDECAY0/install`              |
+| remage         | `~/Documents/REMAGE/install`                |
+| bacon2Data     | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
+
+(ROOT itself comes from Homebrew, not source.)
+
+### 7. Verify
+
+```sh
+exec zsh       # reload the shell
+sanity         # full check: shell, symlinks, PATH, brew, python, pipx,
+               # ROOT, Geant4 datasets, HDF5, BxDecay0, remage, toolchain, ssh
+sanity --net   # also test live ssh auth to github / daq / nersc
+sanity --quick # skip the slow runtime tests
+```
+
+Green across the board (minus any stack you haven't built yet) = done.
+`sanity` exits 1 if anything fails, so it's scriptable too.
+
+---
+
+## Maintenance
+
+- Edit files **in this repo** — symlinks make changes live instantly.
+- Commit and push from here; `git pull` on the other machine.
+- `werb` alias = brew update/upgrade/cleanup/doctor in one go.
+- Run `sanity` after any brew upgrade or stack rebuild.
