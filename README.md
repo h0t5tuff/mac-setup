@@ -1,4 +1,4 @@
-# zshell-setup
+# mac-setup
 
 My macOS shell environment, version-controlled. Three files live in this repo
 and get **symlinked** into place — so any edit here is live immediately, and
@@ -30,8 +30,8 @@ xcode-select --install
 mkdir -p ~/Documents/GitHub ~/.ssh ~/.local/bin
 chmod 700 ~/.ssh
 cd ~/Documents/GitHub
-git clone https://github.com/h0t5tuff/zshell-setup.git
-REPO=~/Documents/GitHub/zshell-setup
+git clone https://github.com/h0t5tuff/mac-setup.git
+REPO=~/Documents/GitHub/mac-setup
 
 # back up real files (not symlinks) if they exist
 [ -f ~/.zshrc ]      && [ ! -L ~/.zshrc ]      && mv ~/.zshrc ~/.zshrc.backup
