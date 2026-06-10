@@ -61,12 +61,37 @@ brew install python@3.14 root cmake pkgconf gsl pipx qt xerces-c
 ### 4. Python tooling
 
 Open a **new terminal first** (so python3 = 3.14 and `PIPX_DEFAULT_PYTHON`
-apply), then:
+apply), then install the standalone CLI tools:
 
 ```sh
 pipx install notebook jupyterlab black   # `jn` alias → jupyter-notebook
-python3 -m venv ~/venvs/v                # `v` alias → activate this venv
 ```
+
+#### Build the main venv
+
+`.zshrc` expects the working venv at `~/venvs/v` (the `v` alias activates it).
+Build it, install the scientific stack, and register it as a Jupyter kernel:
+
+```sh
+python3 -m venv ~/venvs/v                # python3 = Homebrew 3.14 here;
+                                         # otherwise use the explicit path:
+                                         # /opt/homebrew/opt/python@3.14/bin/python3.14
+source ~/venvs/v/bin/activate            # afterwards just `v`
+pip install --upgrade pip
+pip install ipykernel numpy matplotlib seaborn pandas scipy
+python -m ipykernel install --user \
+  --name v \
+  --display-name "Python 3.14 (v)"
+deactivate
+```
+
+The `ipykernel install` step makes the venv show up as **Python 3.14 (v)** in
+the kernel picker of the pipx-installed `jupyter-notebook` / `jupyterlab`
+(kernels are registered user-wide in `~/Library/Jupyter/kernels/`, so the
+notebook server doesn't need to live in the venv).
+
+To rebuild from scratch (e.g. after a Homebrew python major bump), just
+`rm -rf ~/venvs/v` and repeat the block above.
 
 ### 5. SSH keys
 
