@@ -84,6 +84,7 @@ python3 -m venv ~/venvs/v                # python3 = Homebrew 3.14 here;
 source ~/venvs/v/bin/activate            # afterwards just `v`
 pip install --upgrade pip
 pip install ipykernel numpy matplotlib seaborn pandas scipy
+pip install awkward hist legend-pydataobj dspeed pylegendmeta dbetto  # LEGEND stack
 python -m ipykernel install --user \
   --name v \
   --display-name "Python 3.14 (v)"
@@ -94,6 +95,17 @@ The `ipykernel install` step makes the venv show up as **Python 3.14 (v)** in
 the kernel picker of the pipx-installed `jupyter-notebook` / `jupyterlab`
 (kernels are registered user-wide in `~/Library/Jupyter/kernels/`, so the
 notebook server doesn't need to live in the venv).
+
+The LEGEND pip names don't all match their import names:
+
+| import       | pip package       |
+| ------------ | ----------------- |
+| `lgdo`, `lh5`| `legend-pydataobj`|
+| `legendmeta` | `pylegendmeta`    |
+| `dspeed`     | `dspeed`          |
+| `dbetto`     | `dbetto`          |
+| `awkward`    | `awkward`         |
+| `hist`       | `hist`            |
 
 To rebuild from scratch (e.g. after a Homebrew python major bump), just
 `rm -rf ~/venvs/v` and repeat the block above.
