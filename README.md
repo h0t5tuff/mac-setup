@@ -46,9 +46,14 @@ chmod +x "$REPO/sanity"
 
 ### 3. Homebrew packages
 
+The full shared formula set lives in `Brewfile` (top-level packages only —
+dependencies follow automatically):
+
 ```sh
-brew install python@3.14 root cmake pkgconf gsl pipx qt xerces-c
+brew bundle --file "$REPO/Brewfile"
 ```
+
+The load-bearing ones:
 
 | formula          | why                                                      |
 | ---------------- | -------------------------------------------------------- |
@@ -146,5 +151,8 @@ Green across the board (minus any stack you haven't built yet) = done.
 
 - Edit files **in this repo** — symlinks make changes live instantly.
 - Commit and push from here; `git pull` on the other machine.
+- Installed or removed a brew formula? Update `Brewfile` too, then
+  `brew bundle --file "$REPO/Brewfile"` on the other Mac keeps them equal
+  (`brew bundle check` shows drift).
 - `werb` alias = brew update/upgrade/cleanup/doctor in one go.
 - Run `sanity` after any brew upgrade or stack rebuild.
