@@ -70,6 +70,9 @@ apply), then install the standalone CLI tools:
 
 ```sh
 pipx install notebook jupyterlab black   # `jn` alias → jupyter-notebook
+pipx inject jupyterlab jupyterlab_widgets  # frontend half of ipywidgets —
+pipx inject notebook jupyterlab_widgets    # progress bars etc. (kernel half
+                                           # is `ipywidgets` in the venv)
 ```
 
 #### Build the main venv
@@ -83,7 +86,7 @@ python3 -m venv ~/venvs/v                # python3 = Homebrew 3.14 here;
                                          # /opt/homebrew/opt/python@3.14/bin/python3.14
 source ~/venvs/v/bin/activate            # afterwards just `v`
 pip install --upgrade pip
-pip install ipykernel numpy matplotlib seaborn pandas scipy
+pip install ipykernel ipywidgets numpy matplotlib seaborn pandas scipy
 pip install awkward hist legend-pydataobj dspeed pylegendmeta dbetto  # LEGEND stack
 python -m ipykernel install --user \
   --name v \
