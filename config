@@ -6,7 +6,7 @@
 
 # -------------------------
 
-Host *
+Host \*
 ServerAliveInterval 30
 ServerAliveCountMax 4
 Compression yes
@@ -57,4 +57,9 @@ IdentityFile ~/.ssh/id_ed25519_daq
 Host nersc
 HostName perlmutter.nersc.gov
 User tens0r
-IdentityFile ~/.ssh/id_ed25519_nersc
+IdentityFile ~/.ssh/nersc
+IdentitiesOnly yes
+
+# IdentityFile ~/.ssh/id_ed25519_nersc
+
+# sshproxy -u tens0r
