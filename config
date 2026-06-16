@@ -1,58 +1,36 @@
 # ~/.ssh/config
 
-# -------------------------
-
-# Global defaults (macOS)
-
-# -------------------------
+# Global
 
 Host \*
 ServerAliveInterval 30
 ServerAliveCountMax 4
-Compression yes
-
-    # Multiplexing (reuse connections)
-    ControlMaster auto
-    ControlPath ~/.ssh/cm-%r@%h:%p
-    ControlPersist 12h
-
-    # macOS agent + Keychain
-    AddKeysToAgent yes
-    UseKeychain yes
-
-    # Security & Cleanup
-    GSSAPIAuthentication no
-    GSSAPIDelegateCredentials no
-    ForwardX11 no
-    ForwardX11Trusted no
-
-# -------------------------
+Compression yes # Multiplexing (reuse connections)
+ControlMaster auto
+ControlPath ~/.ssh/cm-%r@%h:%p
+ControlPersist 12h # macOS agent + Keychain
+AddKeysToAgent yes
+UseKeychain yes # Security & Cleanup
+GSSAPIAuthentication no
+GSSAPIDelegateCredentials no
+ForwardX11 no
+ForwardX11Trusted no
 
 # GitHub
-
-# -------------------------
 
 Host github.com
 HostName github.com
 User git
 IdentityFile ~/.ssh/id_ed25519_github
 
-# -------------------------
-
 # DAQ
-
-# -------------------------
 
 Host daq
 HostName 64.106.63.220
 User Tensor
 IdentityFile ~/.ssh/id_ed25519_daq
 
-# -------------------------
-
 # NERSC
-
-# -------------------------
 
 Host nersc
 HostName perlmutter.nersc.gov
@@ -62,4 +40,4 @@ IdentitiesOnly yes
 
 # IdentityFile ~/.ssh/id_ed25519_nersc
 
-# sshproxy -u tens0r
+# install (sshproxy-2.1.2-macos-universal.pkg) then in shell: sshproxy -u tens0r
