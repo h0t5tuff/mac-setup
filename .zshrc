@@ -37,9 +37,13 @@ r() {
   root -l "$1" -e 'new TBrowser();'
 }
 # DAQ
-cpyc() { scp daq:~/ROOT/bacon2Data/compiledGold/"$1" . }
-cpyb() { scp daq:~/ROOT/bacon2Data/bobjGold/"$1" . }
-cpybm() { scp "$1" daq:/home/bacon/BaconMonitor/ }
+scpdaq() { scp daq:~/ROOT/bacon2Data/compiledGold/"$1" . }
+scpbm() { scp "$1" daq:/home/bacon/BaconMonitor/ }
+# NERSC
+scplegend() {
+    scp -r "nersc:$1" \
+        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/"
+}
 
 # ╭───────────────────────────────╮
 # │         zsh PATH handling     │
