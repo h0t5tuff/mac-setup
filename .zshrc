@@ -41,8 +41,8 @@ scpdaq() { scp daq:~/ROOT/bacon2Data/compiledGold/"$1" . }
 scpbm() { scp "$1" daq:/home/bacon/BaconMonitor/ }
 # NERSC
 scplegend() {
-    scp -r "nersc:$1" \
-        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/"
+    scp -r "nersc:$2" \
+        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/$1"
 }
 
 # ╭───────────────────────────────╮
