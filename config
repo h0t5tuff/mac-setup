@@ -28,10 +28,11 @@ HostName 64.106.63.220
 User Tensor
 IdentityFile ~/.ssh/id_ed25519_daq
 
-# NERSC
+# NERSC — key + cert issued by `sshproxy -u tens0r` (short-lived, ~24h)
 
 Host nersc
 HostName perlmutter.nersc.gov
 User tens0r
 IdentityFile ~/.ssh/nersc
+CertificateFile ~/.ssh/nersc-cert.pub
 IdentitiesOnly yes

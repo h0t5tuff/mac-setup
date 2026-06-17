@@ -115,19 +115,34 @@ To rebuild from scratch (e.g. after a Homebrew python major bump), just
 
 ### 5. SSH keys
 
-`config` expects one dedicated key per host. Either copy the keys over from
-the old Mac (keep perms!) or generate fresh ones and register the new pubkeys:
+`config` expects one dedicated key per host.
+
+**github + daq** — either copy the keys over from the old Mac (keep perms!)
+or generate fresh ones and register the new pubkeys:
 
 ```sh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_daq
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_nersc
 chmod 600 ~/.ssh/id_ed25519_*
 ```
 
 - **github** → GitHub → Settings → SSH and GPG keys → paste `id_ed25519_github.pub`
 - **daq** → `ssh-copy-id -i ~/.ssh/id_ed25519_daq.pub daq` (password once)
-- **nersc** → follow NERSC's sshproxy/MFA docs for Perlmutter
+
+**nersc** — don't generate a key. NERSC issues a short-lived (~24 h) key + cert
+through its `sshproxy` client. Install it once, then re-run whenever the key
+expires:
+
+1. Install **`sshproxy-2.1.2-macos-universal.pkg`** (from NERSC's MFA / sshproxy docs).
+2. Get a fresh key — prompts for your NERSC password + OTP:
+
+   ```sh
+   sshproxy -u tens0r
+   ```
+
+   This writes `~/.ssh/nersc` and `~/.ssh/nersc-cert.pub`, exactly the
+   `IdentityFile` / `CertificateFile` the `nersc` host in `config` points at.
+   Re-run it once a day (or whenever `ssh nersc` starts asking for a password).
 
 Hosts *not* listed in `config` fall back to ssh's default keys + agent.
 
