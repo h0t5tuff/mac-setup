@@ -1,124 +1,82 @@
 # mac-setup
 
-My macOS shell environment, version-controlled. Three files live in this repo
-and get **symlinked** into place — so any edit here is live immediately, and
-every machine stays in sync with `git pull`.
+My macOS shell environment, version-controlled. Three files are **symlinked**
+into place — edits here go live instantly, and `git pull` keeps every machine in
+sync. `.zshrc` auto-detects the CPU and loads the `arm64` (💻) or `amd64` (🖥️)
+profile.
 
-| repo file | symlinked to                       | what it is                                          |
-| --------- | ---------------------------------- | --------------------------------------------------- |
-| `.zshrc`  | `~/.zshrc`                         | prompt, aliases, Homebrew/Python, physics stack env  |
-| `config`  | `~/.ssh/config`                    | SSH defaults + hosts (github, daq, nersc)            |
-| `sanity`  | `~/sanity`, `~/.local/bin/sanity`  | full system health check (run it any time)           |
+| repo file | symlinked to | what it is |
+| --- | --- | --- |
+| `.zshrc`  | `~/.zshrc` | prompt, aliases, Homebrew/Python, physics-stack env |
+| `config`  | `~/.ssh/config` | SSH defaults + hosts (github, daq, nersc) |
+| `sanity`  | `~/sanity`, `~/.local/bin/sanity` | full system health check |
 
-Works on Apple Silicon and Intel — `.zshrc` auto-detects the arch and runs
-`arm64` (💻) or `amd64` (🖥️) accordingly.
-
----
-
-## Setting up a new Mac
-
-### 1. Prerequisites
+## Bootstrap a new Mac
 
 ```sh
+# 1 — prerequisites
 xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
 
-### 2. Clone and symlink
-
-```sh
-mkdir -p ~/Documents/GitHub ~/.ssh ~/.local/bin
-chmod 700 ~/.ssh
-cd ~/Documents/GitHub
-git clone https://github.com/h0t5tuff/mac-setup.git
+# 2 — clone + symlink (backs up real dotfiles, not existing symlinks)
+mkdir -p ~/Documents/GitHub ~/.ssh ~/.local/bin && chmod 700 ~/.ssh
+cd ~/Documents/GitHub && git clone https://github.com/h0t5tuff/mac-setup.git
 REPO=~/Documents/GitHub/mac-setup
-
-# back up real files (not symlinks) if they exist
 [ -f ~/.zshrc ]      && [ ! -L ~/.zshrc ]      && mv ~/.zshrc ~/.zshrc.backup
 [ -f ~/.ssh/config ] && [ ! -L ~/.ssh/config ] && mv ~/.ssh/config ~/.ssh/config.backup
-
 ln -sfn "$REPO/.zshrc" ~/.zshrc
 ln -sfn "$REPO/config" ~/.ssh/config
 ln -sfn "$REPO/sanity" ~/sanity
 ln -sfn ~/sanity       ~/.local/bin/sanity
 chmod +x "$REPO/sanity"
-```
 
-### 3. Homebrew packages
-
-The full shared formula set lives in `Brewfile` (top-level packages only —
-dependencies follow automatically):
-
-```sh
+# 3 — brew formulae (top-level only; deps follow). Casks: xquartz.
 brew bundle --file "$REPO/Brewfile"
 ```
 
-The load-bearing ones:
+Open a **new terminal** (so `python3` = Homebrew 3.14), then do Python, SSH, and
+the physics stack below. Finish with `sanity`.
 
-| formula          | why                                                      |
-| ---------------- | -------------------------------------------------------- |
-| `python@3.14`    | the pinned shell python (`HOMEBREW_PYTHON` in `.zshrc`)   |
-| `root`           | CERN ROOT — `r` helper, PyROOT, bacon2Data                |
-| `cmake`          | building the physics stack                                |
-| `pkgconf` + `gsl`| pkg-config and BxDecay0's GSL dependency                  |
-| `qt` + `xerces-c`| Geant4 build/runtime deps (OGLSQt vis driver)             |
-
-### 4. Python tooling
-
-Open a **new terminal first** (so python3 = 3.14 and `PIPX_DEFAULT_PYTHON`
-apply), then install the standalone CLI tools:
+## Python / Jupyter
 
 ```sh
-pipx install notebook jupyterlab black   # `jn` alias → jupyter-notebook
-pipx inject jupyterlab jupyterlab_widgets  # frontend half of ipywidgets —
-pipx inject notebook jupyterlab_widgets    # progress bars etc. (kernel half
-                                           # is `ipywidgets` in the venv)
-```
+# standalone CLI tools (jn alias → jupyter-notebook)
+pipx install notebook jupyterlab black
+pipx inject jupyterlab jupyterlab_widgets   # ipywidgets frontend half;
+pipx inject notebook  jupyterlab_widgets    # kernel half is in the venv below
 
-#### Build the main venv
-
-`.zshrc` expects the working venv at `~/venvs/v` (the `v` alias activates it).
-Build it, install the scientific stack, and register it as a Jupyter kernel:
-
-```sh
-python3 -m venv ~/venvs/v                # python3 = Homebrew 3.14 here;
-                                         # otherwise use the explicit path:
-                                         # /opt/homebrew/opt/python@3.14/bin/python3.14
-source ~/venvs/v/bin/activate            # afterwards just `v`
+# main venv at ~/venvs/v  (v alias activates it)
+python3 -m venv ~/venvs/v                    # python3 = Homebrew 3.14
+source ~/venvs/v/bin/activate
 pip install --upgrade pip
 pip install ipykernel ipywidgets numpy matplotlib seaborn pandas scipy
-pip install awkward hist legend-pydataobj dspeed pylegendmeta dbetto  # LEGEND stack
-python -m ipykernel install --user \
-  --name v \
-  --display-name "Python 3.14 (v)"
+pip install awkward hist legend-pydataobj dspeed pylegendmeta dbetto   # LEGEND
+python -m ipykernel install --user --name v --display-name "Python 3.14 (v)"
 deactivate
 ```
 
-The `ipykernel install` step makes the venv show up as **Python 3.14 (v)** in
-the kernel picker of the pipx-installed `jupyter-notebook` / `jupyterlab`
-(kernels are registered user-wide in `~/Library/Jupyter/kernels/`, so the
-notebook server doesn't need to live in the venv).
+The kernel registers user-wide (`~/Library/Jupyter/kernels/`), so the pipx
+Jupyter shows **Python 3.14 (v)** without living in the venv. Rebuild anytime:
+`rm -rf ~/venvs/v` and repeat. LEGEND pip names ≠ import names:
 
-The LEGEND pip names don't all match their import names:
+| import | pip package |
+| --- | --- |
+| `lgdo`, `lh5` | `legend-pydataobj` |
+| `legendmeta` | `pylegendmeta` |
+| `dspeed`, `dbetto`, `awkward`, `hist` | (same name) |
 
-| import       | pip package       |
-| ------------ | ----------------- |
-| `lgdo`, `lh5`| `legend-pydataobj`|
-| `legendmeta` | `pylegendmeta`    |
-| `dspeed`     | `dspeed`          |
-| `dbetto`     | `dbetto`          |
-| `awkward`    | `awkward`         |
-| `hist`       | `hist`            |
+## SSH
 
-To rebuild from scratch (e.g. after a Homebrew python major bump), just
-`rm -rf ~/venvs/v` and repeat the block above.
+`config` sets global defaults (keep-alive, connection multiplexing w/ 12 h
+persist, Keychain-backed agent, no GSSAPI/X11) plus one key per host:
 
-### 5. SSH keys
+| host | target | key |
+| --- | --- | --- |
+| `github.com` | github.com | `~/.ssh/id_ed25519_github` |
+| `daq` | 64.106.63.220 · user `Tensor` | `~/.ssh/id_ed25519_daq` |
+| `nersc` | perlmutter.nersc.gov · user `tens0r` | `~/.ssh/nersc` + `nersc-cert.pub` |
 
-`config` expects one dedicated key per host.
-
-**github + daq** — either copy the keys over from the old Mac (keep perms!)
-or generate fresh ones and register the new pubkeys:
+**github + daq** — copy the keys from the old Mac (keep perms) or generate fresh:
 
 ```sh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
@@ -126,63 +84,61 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_daq
 chmod 600 ~/.ssh/id_ed25519_*
 ```
 
-- **github** → GitHub → Settings → SSH and GPG keys → paste `id_ed25519_github.pub`
+- **github** → paste `id_ed25519_github.pub` into GitHub → Settings → SSH keys
 - **daq** → `ssh-copy-id -i ~/.ssh/id_ed25519_daq.pub daq` (password once)
 
-**nersc** — don't generate a key. NERSC issues a short-lived (~24 h) key + cert
-through its `sshproxy` client. Install it once, then re-run whenever the key
-expires:
-
-1. Install **`sshproxy-2.1.2-macos-universal.pkg`** (from NERSC's MFA / sshproxy docs).
-2. Get a fresh key — prompts for your NERSC password + OTP:
-
-   ```sh
-   sshproxy -u tens0r
-   ```
-
-   This writes `~/.ssh/nersc` and `~/.ssh/nersc-cert.pub`, exactly the
-   `IdentityFile` / `CertificateFile` the `nersc` host in `config` points at.
-   Re-run it once a day (or whenever `ssh nersc` starts asking for a password).
-
-Hosts *not* listed in `config` fall back to ssh's default keys + agent.
-
-### 6. Physics stack (source builds)
-
-`.zshrc` hardcodes these install prefixes — build each project into exactly
-these paths and everything (PATH, `CMAKE_PREFIX_PATH`, pkg-config, dyld) lines
-up. `sanity` will tell you what's missing.
-
-| project        | expected install prefix                     |
-| -------------- | ------------------------------------------- |
-| HDF5 1.14.3    | `~/Documents/HDF5/install-hdf5-1_14_3`      |
-| Geant4 11.4.0  | `~/Documents/GEANT4/install-v11.4.0`        |
-| BxDecay0       | `~/Documents/BXDECAY0/install`              |
-| remage         | `~/Documents/REMAGE/install`                |
-| bacon2Data     | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
-
-(ROOT itself comes from Homebrew, not source.)
-
-### 7. Verify
+**nersc** — don't generate a key. `sshproxy` issues a short-lived (~24 h)
+key + cert. Install `sshproxy-2.1.2-macos-universal.pkg` (NERSC MFA docs), then
+re-run whenever `ssh nersc` starts asking for a password:
 
 ```sh
-exec zsh       # reload the shell
-sanity         # full check: shell, symlinks, PATH, brew, python, pipx,
-               # ROOT, Geant4 datasets, HDF5, BxDecay0, remage, toolchain, ssh
-sanity --net   # also test live ssh auth to github / daq / nersc
-sanity --quick # skip the slow runtime tests
+sshproxy -u tens0r        # NERSC password + OTP → ~/.ssh/nersc{,-cert.pub}
 ```
 
-Green across the board (minus any stack you haven't built yet) = done.
-`sanity` exits 1 if anything fails, so it's scriptable too.
+Hosts not in `config` fall back to ssh's default keys + agent.
 
----
+## Physics stack (source builds)
+
+`.zshrc` hardcodes these prefixes — build into exactly these paths so PATH,
+`CMAKE_PREFIX_PATH`, pkg-config and dyld all line up. ROOT comes from Homebrew.
+
+| project | install prefix |
+| --- | --- |
+| HDF5 1.14.3 | `~/Documents/HDF5/install-hdf5-1_14_3` |
+| Geant4 11.4.0 | `~/Documents/GEANT4/install-v11.4.0` |
+| BxDecay0 | `~/Documents/BXDECAY0/install` |
+| remage | `~/Documents/REMAGE/install` |
+| bacon2Data | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
+
+## Daily drivers (`.zshrc`)
+
+| command | what it does |
+| --- | --- |
+| `sanity` | system health check (below) |
+| `werb` | brew update + upgrade + autoremove + cleanup + doctor |
+| `dds` | detailed `ls` + directory size + entry counts |
+| `v` · `jn` | activate `~/venvs/v` · launch jupyter-notebook |
+| `r <file.root>` | open a ROOT file in a TBrowser |
+| `scpbm <file>` | scp file → `daq:/home/bacon/BaconMonitor/` |
+| `scplegend <name> <remote_path>` | pull from nersc into iCloud legend-shifts |
+| `scpshifter <period> <run>` | pull that run's monitoring PDFs from nersc |
+
+## sanity
+
+```sh
+sanity          # all local checks: shell, symlinks, PATH, brew, python, pipx,
+                #   ROOT, Geant4 + datasets, HDF5, BxDecay0, remage, toolchain, ssh
+sanity --quick  # skip slow runtime tests (ROOT macro, PyROOT, G4 datasets, brew outdated)
+sanity --net    # also test live ssh auth to github / daq / nersc
+```
+
+Green across the board (minus any stack you haven't built) = done. Exits 1 on
+any failure, so it's scriptable.
 
 ## Maintenance
 
-- Edit files **in this repo** — symlinks make changes live instantly.
-- Commit and push from here; `git pull` on the other machine.
-- Installed or removed a brew formula? Update `Brewfile` too, then
-  `brew bundle --file "$REPO/Brewfile"` on the other Mac keeps them equal
-  (`brew bundle check` shows drift).
-- `werb` alias = brew update/upgrade/cleanup/doctor in one go.
+- Edit files **in this repo** — symlinks make changes live; commit + push here,
+  `git pull` on the other machine.
+- Added/removed a formula? Update `Brewfile`, then re-run
+  `brew bundle --file "$REPO/Brewfile"` elsewhere (`brew bundle check` shows drift).
 - Run `sanity` after any brew upgrade or stack rebuild.
