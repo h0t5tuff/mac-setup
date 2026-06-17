@@ -1,11 +1,9 @@
-# ~/.ssh/config
-
 # Global
 
-Host \*
+Host *
 ServerAliveInterval 30
 ServerAliveCountMax 4
-Compression yes # Multiplexing (reuse connections)
+Compression yes # Multiplexing
 ControlMaster auto
 ControlPath ~/.ssh/cm-%r@%h:%p
 ControlPersist 12h # macOS agent + Keychain
@@ -37,7 +35,3 @@ HostName perlmutter.nersc.gov
 User tens0r
 IdentityFile ~/.ssh/nersc
 IdentitiesOnly yes
-
-# IdentityFile ~/.ssh/id_ed25519_nersc
-
-# install (sshproxy-2.1.2-macos-universal.pkg) then in shell: sshproxy -u tens0r
