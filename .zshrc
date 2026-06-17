@@ -41,8 +41,24 @@ scpdaq() { scp daq:~/ROOT/bacon2Data/compiledGold/"$1" . }
 scpbm() { scp "$1" daq:/home/bacon/BaconMonitor/ }
 # NERSC
 scplegend() {
-    scp -r "nersc:$2" \
-        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/$1"
+    local name="$1"
+    local path="$2"
+    if [[ -z "$name" || -z "$path" ]]; then
+        echo "Usage: scplegend <local_name> <remote_path>"
+        return 1
+    fi
+    scp -r "nersc:$path" \
+        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/$name"
+}
+scpshifter() {
+    local period="$1"
+    local run="$2"
+    if [[ -z "$period" || -z "$run" ]]; then
+        echo "Usage: scpshifter <period> <run>"
+        return 1
+    fi
+    scp -r "nersc:/global/cfs/cdirs/m2676/users/calgaro/legend-data-monitor/monitoring/automatic_prod/dashboard/auto/latest/generated/plt/hit/phy/${period}/${run}/mtg/pdf" \
+        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/${period}_${run}"
 }
 
 # ╭───────────────────────────────╮
