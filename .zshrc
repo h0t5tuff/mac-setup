@@ -31,14 +31,19 @@ alias vscodefix='echo "Run: Cmd+Shift+P → Shell Command: Install code in PATH"
 #ROOT
 r() {
   if [[ ! -f "$1" ]]; then
-    echo "eeestupidooo"
+    echo "Usage: r <root_file>"
     return 1
   fi
   root -l "$1" -e 'new TBrowser();'
 }
 # DAQ
-scpdaq() { scp daq:~/ROOT/bacon2Data/compiledGold/"$1" . }
-scpbm() { scp "$1" daq:/home/bacon/BaconMonitor/ }
+scpbm() { 
+  if [[ ! -f "$1" ]]; then
+    echo "Usage: scpbm <local_file>"
+    return 1
+  fi
+  scp "$1" daq:/home/bacon/BaconMonitor/ 
+}
 # NERSC
 scplegend() {
     local name="$1"
