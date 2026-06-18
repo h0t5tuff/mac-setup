@@ -141,7 +141,7 @@ fi
 # │  ☢️ Physics Simulation Stack  │
 # ╰───────────────────────────────╯
 # HDF5
-export HDF5_ROOT="$HOME/Documents/HDF5/install-hdf5-1_14_3"
+export HDF5_ROOT="$HOME/Documents/HDF5/install-hdf5_2.1.0"
 export HDF5_DIR="$HDF5_ROOT/cmake"
 path=("$HDF5_ROOT/bin" $path)
 export PKG_CONFIG_PATH="$HDF5_ROOT/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
