@@ -147,7 +147,7 @@ path=("$HDF5_ROOT/bin" $path)
 export PKG_CONFIG_PATH="$HDF5_ROOT/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 # Geant4
-export GEANT4_BASE="$HOME/Documents/GEANT4/install-v11.4.0"
+export GEANT4_BASE="$HOME/Documents/GEANT4/install-v11.4.2"
 if [[ -f "$GEANT4_BASE/bin/geant4.sh" ]]; then
   source "$GEANT4_BASE/bin/geant4.sh"
 fi
