@@ -45,21 +45,11 @@ scpbm() {
   scp "$1" daq:/home/bacon/BaconMonitor/ 
 }
 # NERSC
-scplegend() {
-    local name="$1"
-    local path="$2"
-    if [[ -z "$name" || -z "$path" ]]; then
-        echo "Usage: scplegend <local_name> <remote_path>"
-        return 1
-    fi
-    scp -r "nersc:$path" \
-        "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/$name"
-}
-scpshifter() {
+scpdqcpdfs() {
     local period="$1"
     local run="$2"
     if [[ -z "$period" || -z "$run" ]]; then
-        echo "Usage: scpshifter <period> <run>"
+        echo "Usage: scpdqcpdfs <period> <run>"
         return 1
     fi
     scp -r "nersc:/global/cfs/cdirs/m2676/users/calgaro/legend-data-monitor/monitoring/automatic_prod/dashboard/auto/latest/generated/plt/hit/phy/${period}/${run}/mtg/pdf" \
