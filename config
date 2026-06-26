@@ -28,6 +28,13 @@ HostName 64.106.63.220
 User Tensor
 IdentityFile ~/.ssh/id_ed25519_daq
 
+# BACON
+
+Host bacon
+HostName 64.106.63.220
+User bacon
+IdentityFile ~/.ssh/id_ed25519_bacon
+
 # NERSC — key + cert issued by `sshproxy -u tens0r` (short-lived, ~24h)
 
 Host nersc
