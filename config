@@ -21,19 +21,19 @@ HostName github.com
 User git
 IdentityFile ~/.ssh/id_ed25519_github
 
-# DAQ
+#DAQTensor
 
-Host daq
+Host daqTensor
 HostName 64.106.63.220
 User Tensor
-IdentityFile ~/.ssh/id_ed25519_daq
+IdentityFile ~/.ssh/id_ed25519_daqTensor
 
-# BACON
+#DAQbacon
 
-Host bacon
+Host daqbacon
 HostName 64.106.63.220
 User bacon
-IdentityFile ~/.ssh/id_ed25519_bacon
+IdentityFile ~/.ssh/id_ed25519_daqbacon
 
 # NERSC — key + cert issued by `sshproxy -u tens0r` (short-lived, ~24h)
 
