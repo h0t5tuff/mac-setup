@@ -22,10 +22,12 @@ PROMPT='${ENV_FLAVOR} %F{green}τενΣΩρ%f %F{green}%~%f %F{magenta}$(parse_g
 # ╭───────────────────────────────╮
 # │          ⚡ Aliases            │
 # ╰───────────────────────────────╯
-alias dds='ls -hFGlast -tr; \
+alias dds='ls -halsF -tr --color=auto'
+alias dss='ls -hFGlast -tr; \
   echo -n "Size: "; du -sh . | cut -f1; \
   echo -n " Entries (curr): "; find . -mindepth 1 -maxdepth 1 | wc -l; \
   echo -n " Entries (all): "; find . -mindepth 1 | wc -l'
+  
 alias werb='brew update && brew upgrade && brew autoremove && brew cleanup && brew doctor'
 alias vscodefix='echo "Run: Cmd+Shift+P → Shell Command: Install code in PATH"'
 #ROOT
