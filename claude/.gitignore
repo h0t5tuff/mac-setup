@@ -7,13 +7,8 @@ sessions/
 shell-snapshots/
 ide/
 
-# Ignore conversation transcripts and cached artifacts
-projects/**/*.jsonl
-projects/**/tool-results/
-projects/ssh-*/
+# All project data — synced via iCloud instead
+projects/
 
-# Keep memory directories in all projects
-!projects/*/memory/
-!projects/*/memory/**
 .DS_Store
 .last-cleanup
