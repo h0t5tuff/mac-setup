@@ -1,0 +1,18 @@
+# Ignore ephemeral/large runtime data
+backups/
+cache/
+downloads/
+session-env/
+sessions/
+shell-snapshots/
+ide/
+
+# Ignore all project conversation transcripts
+projects/ssh-*/
+projects/-Users-tensor-*/
+projects/-Users-tensor/*.jsonl
+
+# Keep only memory
+!projects/-Users-tensor/memory/
+.DS_Store
+.last-cleanup
