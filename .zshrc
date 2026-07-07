@@ -154,7 +154,7 @@ export PKG_CONFIG_PATH="$BXDECAY0_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 # remage
 export REMAGE_HOME="$HOME/Documents/REMAGE"
-export REMAGE_PREFIX="$REMAGE_HOME/install"
+export REMAGE_PREFIX="$REMAGE_HOME/install-remage-v0.24.0"
 path=("$REMAGE_PREFIX/bin" $path)
 
 # CMake / dynamic-linker hints for the whole stack
