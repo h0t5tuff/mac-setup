@@ -169,4 +169,6 @@ export DYLD_FALLBACK_LIBRARY_PATH="$HDF5_ROOT/lib:$GEANT4_BASE/lib:$BXDECAY0_PRE
 export BACONHOME="$HOME/Documents/ROOT"
 export BOBJ="$HOME/Documents/ROOT/bacon2Data/bobj"
 export COMPILED="$HOME/Documents/ROOT/bacon2Data/compiled"
+export ROOTDATA="$COMPILED/rootData"   # anacg input (per-run raw/sim waveforms)
+export CAENDATA="$COMPILED/caenData"   # anacg output / postAna + summary input
 path=("$BOBJ" "$COMPILED" "$BACONHOME" $path)
