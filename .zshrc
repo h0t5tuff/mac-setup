@@ -44,7 +44,11 @@ scpbm() {
     echo "Usage: scpbm <local_file>"
     return 1
   fi
-  scp "$1" daq:/home/bacon/BaconMonitor/ 
+  scp "$1" daqTensor:/home/bacon/BaconMonitor/ 
+}
+scpdaq() {
+    ssh -t daqTensor "sudo chmod 644 \"$1\"" &&
+    scp "daqTensor:$1" .
 }
 # NERSC
 scpdqcpdfs() {
