@@ -61,6 +61,18 @@ scpdqcpdfs() {
     scp -r "nersc:/global/cfs/cdirs/m2676/users/calgaro/legend-data-monitor/monitoring/automatic_prod/dashboard/auto/latest/generated/plt/hit/phy/${period}/${run}/mtg/pdf" \
         "$HOME/Library/Mobile Documents/com~apple~CloudDocs/0νββ/legend shifts/${period}_${run}"
 }
+scpshifter() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: scpshifter <dir name>"
+        return 1
+    fi
+    local remote="/global/cfs/cdirs/legend/users/Tensor/shifter/$1"
+    local dest="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Downloads/$1"
+    mkdir -p "$dest"
+    rsync -avm \
+        --include='*/' --include='*.h5' --include='*.png' --exclude='*' \
+        "nersc:$remote/" "$dest/"
+}
 
 # ╭───────────────────────────────╮
 # │         zsh PATH handling     │
