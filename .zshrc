@@ -66,12 +66,19 @@ scppng() {
         echo "Usage: scppng <dir name>"
         return 1
     fi
-    local remote="/global/cfs/cdirs/legend/users/Tensor/shifter/$1"
-    local dest="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Downloads/$1"
-    mkdir -p "$dest"
+
+    local name="$1"
+    local remote="/global/cfs/cdirs/legend/users/Tensor/shifter/$name"
+    local dest="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Downloads/$name"
+
+    mkdir -p "$dest" || return 1
+
     rsync -avm \
-        --include='*/' --include='*.png' --exclude='*' \
-        "nersc:$remote/" "$dest/"
+        --include='*/' \
+        --include='*.png' \
+        --exclude='*' \
+        "nersc:${remote}/" \
+        "${dest}/"
 }
 
 # ╭───────────────────────────────╮
