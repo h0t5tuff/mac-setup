@@ -145,7 +145,9 @@ amd64() {
 # ╰───────────────────────────────╮
 export PIPX_DEFAULT_PYTHON="$HOMEBREW_PYTHON/bin/python3"
 path+=("$HOME/.local/bin")
-alias jn='jupyter-notebook'
+# Jupyter lives in ~/venvs/v (not pipx/brew) — call it by path, no activation needed
+alias jn='~/venvs/v/bin/jupyter notebook'
+alias jl='~/venvs/v/bin/jupyter lab'
 alias venv="source ~/venvs/v/bin/activate"
 if [[ -o interactive ]]; then
   if [[ $(uname -m) == arm64 ]]; then arm64; else amd64; fi
