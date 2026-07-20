@@ -146,7 +146,7 @@ amd64() {
 export PIPX_DEFAULT_PYTHON="$HOMEBREW_PYTHON/bin/python3"
 path+=("$HOME/.local/bin")
 alias jn='jupyter-notebook'
-alias venv="source ~/venvs/venv/bin/activate"
+alias venv="source ~/venvs/v/bin/activate"
 if [[ -o interactive ]]; then
   if [[ $(uname -m) == arm64 ]]; then arm64; else amd64; fi
 fi

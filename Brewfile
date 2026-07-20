@@ -4,7 +4,8 @@
 # Only top-level formulae are listed; dependencies come along automatically.
 
 # ── core / pinned ──────────────────────────────────────────────
-brew "python@3.14"   # pinned shell python (HOMEBREW_PYTHON in .zshrc)
+brew "python@3.14"   # pinned shell python (HOMEBREW_PYTHON in .zshrc), venv ~/venvs/v
+brew "python@3.13"   # REQUIRED: remage bundles a venv built on 3.13 — do not remove
 brew "gsl"           # BxDecay0 dependency (also used by ROOT)
 brew "pkgconf"
 brew "cmake"
@@ -23,8 +24,9 @@ brew "jpeg"
 brew "opencascade"
 
 # ── python / jupyter ───────────────────────────────────────────
-brew "pipx"
-brew "jupyterlab"    # also pulls node + pandoc
+brew "pipx"          # standalone CLI tools only (black); NOT jupyter
+brew "pandoc"        # nbconvert export (was implicit via jupyterlab)
+brew "node"          # jupyter extension builds (was implicit via jupyterlab)
 
 # ── shell & editors ────────────────────────────────────────────
 brew "zsh"

@@ -219,8 +219,25 @@ if python3 -m pip --version >/dev/null 2>&1; then
 else
   fail "python3 -m pip broken"
 fi
-[[ -f ~/venvs/v/bin/activate ]] && pass "venv 'v' present (alias v)" || warn "~/venvs/v missing (alias v will fail)"
-check_cmd jupyter-notebook warn
+[[ -f ~/venvs/v/bin/activate ]] && pass "venv 'v' present (alias venv)" || warn "~/venvs/v missing (alias venv will fail)"
+
+# Jupyter lives in ~/venvs/v (not pipx, not brew) so widgets resolve — see README
+if [[ -x ~/venvs/v/bin/jupyter ]]; then
+  pass "jupyter in venv ($(~/venvs/v/bin/jupyter lab --version 2>/dev/null))"
+  if ~/venvs/v/bin/jupyter labextension list 2>&1 | grep -q jupyterlab-manager; then
+    pass "ipywidgets frontend enabled"
+  else
+    warn "jupyterlab_widgets missing — widgets will render blank"
+  fi
+else
+  warn "no jupyter in ~/venvs/v"
+fi
+# these must NOT exist: a brew/pipx jupyter shadows the venv copy
+if command -v jupyter-lab >/dev/null 2>&1; then
+  warn "jupyter-lab on PATH ($(command -v jupyter-lab)) shadows the venv copy"
+else
+  pass "no competing jupyter-lab on PATH"
+fi
 
 section "📦 pipx"
 if ! command -v pipx >/dev/null; then
