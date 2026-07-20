@@ -153,7 +153,6 @@ fi
 typeset -a want_on_path
 want_on_path=("$HOME/.local/bin")
 [[ -n $hb_python ]]           && want_on_path+=("$hb_python/libexec/bin")
-[[ -n ${HDF5_ROOT:-} ]]       && want_on_path+=("$HDF5_ROOT/bin")
 [[ -n ${GEANT4_BASE:-} ]]     && want_on_path+=("$GEANT4_BASE/bin")
 [[ -n ${REMAGE_PREFIX:-} ]]   && want_on_path+=("$REMAGE_PREFIX/bin")
 [[ -n ${BOBJ:-} ]]            && want_on_path+=("$BOBJ")
@@ -298,22 +297,6 @@ else
 fi
 [[ -n ${G4VIS_DEFAULT_DRIVER:-} ]] && pass "G4VIS_DEFAULT_DRIVER = $G4VIS_DEFAULT_DRIVER" || warn "G4VIS_DEFAULT_DRIVER unset"
 
-section "🗄️  HDF5"
-check_dir "HDF5_ROOT" "${HDF5_ROOT:-}"
-check_dir "HDF5_DIR (cmake)" "${HDF5_DIR:-}" warn
-check_cmd h5dump warn
-if pkg-config --exists hdf5 2>/dev/null; then
-  pass "pkg-config hdf5 $(pkg-config --modversion hdf5)"
-else
-  typeset -a h5pcs
-  h5pcs=(${HDF5_ROOT:-/nonexistent}/lib/pkgconfig/*.pc(N))
-  if (( ${#h5pcs} )); then
-    info "hdf5 .pc files present: ${(j:, :)${(@)h5pcs:t}} (pkg-config can't resolve 'hdf5')"
-  else
-    info "no .pc files under HDF5_ROOT (fine — cmake uses HDF5_DIR)"
-  fi
-fi
-
 section "🧬 BxDecay0"
 check_dir "BXDECAY0_PREFIX" "${BXDECAY0_PREFIX:-}"
 if pkg-config --exists bxdecay0 2>/dev/null; then
@@ -377,7 +360,6 @@ done
 # /bin/zsh), so verify the fallback lib dirs from .zshrc's recipe instead
 typeset -a dyld_libs
 dyld_libs=()
-[[ -n ${HDF5_ROOT:-} ]]        && dyld_libs+=("$HDF5_ROOT/lib")
 [[ -n ${GEANT4_BASE:-} ]]      && dyld_libs+=("$GEANT4_BASE/lib")
 [[ -n ${BXDECAY0_PREFIX:-} ]]  && dyld_libs+=("$BXDECAY0_PREFIX/lib")
 [[ -n ${REMAGE_PREFIX:-} ]]    && dyld_libs+=("$REMAGE_PREFIX/lib")

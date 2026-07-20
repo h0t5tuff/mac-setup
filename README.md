@@ -59,7 +59,6 @@ in `.zshrc` ROOT comes from Homebrew.
 
 | project         | install                                              |
 | --------------- | ---------------------------------------------------- |
-| HDF5 2.1.0      | `~/Documents/HDF5/install-hdf5_2.1.0`                |
 | Geant4 11.4.2   | `~/Documents/GEANT4/install-v11.4.2`                 |
 | BxDecay0        | `~/Documents/BXDECAY0/install`                       |
 | remage 0.24.0   | `~/Documents/REMAGE/install-remage-v0.24.0`          |

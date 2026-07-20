@@ -155,12 +155,6 @@ fi
 # ╭───────────────────────────────╮
 # │  ☢️ Physics Simulation Stack  │
 # ╰───────────────────────────────╯
-# HDF5
-export HDF5_ROOT="$HOME/Documents/HDF5/install-hdf5_2.1.0"
-export HDF5_DIR="$HDF5_ROOT/cmake"
-path=("$HDF5_ROOT/bin" $path)
-export PKG_CONFIG_PATH="$HDF5_ROOT/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-
 # Geant4
 export GEANT4_BASE="$HOME/Documents/GEANT4/install-v11.4.2"
 if [[ -f "$GEANT4_BASE/bin/geant4.sh" ]]; then
@@ -184,8 +178,8 @@ path=("$REMAGE_PREFIX/bin" $path)
 export LEGEND_METADATA="$REMAGE_HOME/legend-metadata"
 
 # CMake / dynamic-linker hints for the whole stack
-export CMAKE_PREFIX_PATH="$HDF5_ROOT;$BXDECAY0_PREFIX;$GEANT4_BASE;/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"
-export DYLD_FALLBACK_LIBRARY_PATH="$HDF5_ROOT/lib:$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE_PREFIX/lib:${DYLD_FALLBACK_LIBRARY_PATH:-}"
+export CMAKE_PREFIX_PATH="$BXDECAY0_PREFIX;$GEANT4_BASE;/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"
+export DYLD_FALLBACK_LIBRARY_PATH="$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE_PREFIX/lib:${DYLD_FALLBACK_LIBRARY_PATH:-}"
 
 
 # ╭───────────────────────────────╮
