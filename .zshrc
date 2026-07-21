@@ -32,7 +32,7 @@ alias werb='brew update && brew upgrade && brew autoremove && brew cleanup && br
 alias vscode='echo "Run: Cmd+Shift+P → Shell Command: Install code in PATH"'
 #ROOT
 r() {
-  if [[ ! -f "$1" ]]; then
+  if [[ -z "$1" ]]; then
     echo "Usage: r <root_file>"
     return 1
   fi
@@ -40,18 +40,31 @@ r() {
 }
 # DAQ
 scpbm() { 
-  if [[ ! -f "$1" ]]; then
+    if [[ -z "$1" ]]; then
     echo "Usage: scpbm <local_file>"
     return 1
   fi
   scp "$1" daqTensor:/home/bacon/BaconMonitor/ 
 }
 scpdaq() {
-    ssh -t daqTensor "sudo chmod 644 \"$1\"" &&
-    scp "daqTensor:$1" .
+  if [[ -z "$1" ]]; then
+    echo "Usage: scpdaq <root_file>"
+    return 1
+  fi
+  ssh -t daqTensor "sudo chmod 644 \"$1\"" &&
+  scp "daqTensor:$1" .
+}
+scpdaqposts() {
+  local f='/home/gold/bacon2Data/compiled/post-*.root'
+  ssh -t daqTensor "sudo chmod 644 $f" &&
+  scp "daqTensor:$f" .
 }
 # NERSC
 scpdqcpdfs() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: scpdqcpdfs <period> <run>"
+        return 1
+    fi 
     local period="$1"
     local run="$2"
     if [[ -z "$period" || -z "$run" ]]; then
@@ -66,13 +79,10 @@ scppng() {
         echo "Usage: scppng <dir name>"
         return 1
     fi
-
     local name="$1"
     local remote="/global/cfs/cdirs/legend/users/Tensor/shifter/$name"
     local dest="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Downloads/$name"
-
     mkdir -p "$dest" || return 1
-
     rsync -avm \
         --include='*/' \
         --include='*.png' \
