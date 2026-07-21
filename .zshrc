@@ -29,7 +29,7 @@ alias dss='ls -hFGlast -tr; \
   echo -n " Entries (all): "; find . -mindepth 1 | wc -l'
   
 alias werb='brew update && brew upgrade && brew autoremove && brew cleanup && brew doctor'
-alias code='echo "Run: Cmd+Shift+P → Shell Command: Install code in PATH"'
+alias vscode='echo "Run: Cmd+Shift+P → Shell Command: Install code in PATH"'
 #ROOT
 r() {
   if [[ ! -f "$1" ]]; then
