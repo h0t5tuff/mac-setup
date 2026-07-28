@@ -1,6 +1,6 @@
-# ╭───────────────────────────────────────╮
-# │        ⚡ Prompt & Git                 │
-# ╰───────────────────────────────────────╯
+# ╭──────────────────────╮
+# │        ⚡ Git         │
+# ╰──────────────────────╯
 parse_git_status() {
   git rev-parse --is-inside-work-tree &>/dev/null || return
   local branch dirty ahead behind
@@ -17,6 +17,10 @@ parse_git_status() {
   echo "%F{blue}[$branch $dirty$ahead$behind]%f"
 }
 setopt prompt_subst
+
+# ╭─────────────────────────╮
+# |        Prompt           |
+# ╰─────────────────────────╯
 PROMPT='${ENV_FLAVOR} %F{green}τενΣΩρ%f %F{green}%~%f %F{magenta}$(parse_git_status)%f '
 
 # ╭───────────────────────────────╮
