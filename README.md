@@ -66,6 +66,18 @@ Launch with `~/venvs/v/bin/jupyter lab`, or `venv` (the `.zshrc` alias for
 `source ~/venvs/v/bin/activate`) and then `jupyter lab`. Keep pipx for standalone
 CLI tools like `black`, where env isolation is the point.
 
+## LaTeX (VS Code, replaces Overleaf)
+
+MacTeX without the GUI apps; `path_helper` puts `/Library/TeX/texbin` on `PATH`.
+
+```sh
+brew install --cask mactex-no-gui
+# new terminal:
+eval "$(/usr/libexec/path_helper)"
+pdflatex --version          # confirm texbin is on PATH
+code --install-extension James-Yu.latex-workshop
+```
+
 ## SSH
 
 `config` sets global defaults (keep-alive, multiplexing, Keychain agent, no
