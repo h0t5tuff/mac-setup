@@ -16,9 +16,9 @@ machine.
 xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-mkdir -p ~/Documents/GitHub ~/.ssh ~/.local/bin && chmod 700 ~/.ssh
-cd ~/Documents/GitHub && git clone https://github.com/h0t5tuff/mac-setup.git
-REPO=~/Documents/GitHub/mac-setup
+mkdir -p ~/Documents ~/.ssh ~/.local/bin && chmod 700 ~/.ssh
+cd ~/Documents && git clone https://github.com/h0t5tuff/mac-setup.git
+REPO=~/Documents/mac-setup
 
 # back up real dotfiles, not existing symlinks
 [ -f ~/.zshrc ]      && [ ! -L ~/.zshrc ]      && mv ~/.zshrc ~/.zshrc.backup
