@@ -99,6 +99,6 @@ in `.zshrc` ROOT comes from Homebrew.
 | --------------- | ---------------------------------------------------- |
 | Geant4 11.4.2   | `~/Documents/GEANT4/install-v11.4.2`                 |
 | BxDecay0        | `~/Documents/BXDECAY0/install`                       |
-| remage 0.24.0   | `~/Documents/REMAGE/install-remage-v0.24.0`          |
+| remage 0.25.0   | `~/Documents/REMAGE/install-remage-v0.25.0`          |
 | legend-metadata | `~/Documents/REMAGE/legend-metadata`                 |
 | bacon2Data      | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
