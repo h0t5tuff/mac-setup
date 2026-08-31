@@ -195,7 +195,7 @@ export LEGEND_METADATA="$REMAGE_HOME/legend-metadata"
 
 # CMake / dynamic-linker hints for the whole stack
 export CMAKE_PREFIX_PATH="$BXDECAY0_PREFIX;$GEANT4_BASE;/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"
-export DYLD_FALLBACK_LIBRARY_PATH="$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE_PREFIX/lib:${DYLD_FALLBACK_LIBRARY_PATH:-}"
+export DYLD_FALLBACK_LIBRARY_PATH="$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE_PREFIX/lib:${DYLD_FALLBACK_LIBRARY_PATH:-/usr/local/lib:/usr/lib}"
 
 
 # ╭───────────────────────────────╮
@@ -208,3 +208,5 @@ export COMPILED="$HOME/Documents/ROOT/bacon2Data/compiled"
 export ROOTDATA="$COMPILED/rootData"   # anacg input (per-run raw/sim waveforms)
 export CAENDATA="$COMPILED/caenData"   # anacg output / postAna + summary input
 path=("$BOBJ" "$COMPILED" "$BACONHOME" $path)
+
+torrent() { ~/venvs/torrent/bin/python "$HOME/Library/Mobile Documents/com~apple~CloudDocs/MechaTronics/T/torrent_dl.py" "$@"; }
