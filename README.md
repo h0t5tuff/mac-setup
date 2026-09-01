@@ -1,8 +1,7 @@
 # mac-setup
 
 My macOS shell environment, version-controlled. Three files are **symlinked**
-into place, so edits here go live instantly
-machine.
+into place, so edits here go live instantly.
 
 | repo file | symlinked to                      |
 | --------- | --------------------------------- |
@@ -89,16 +88,16 @@ GSSAPI/X11) plus one key per host:
 | `daqTensor`  | 64.106.63.220 · `Tensor`        | `id_ed25519_daqTensor`     |
 | `nersc`      | perlmutter.nersc.gov · `tens0r` | `nersc` + `nersc-cert.pub` |
 
-Copy the keys from the old Mac (`chmod 600`) or generate fresh
+Copy the keys from the old Mac (`chmod 600`) or generate fresh.
 
 ## Physics stack (source builds)
 
-in `.zshrc` ROOT comes from Homebrew.
+Built from source and wired up in `.zshrc`; ROOT comes from Homebrew.
 
 | project         | install                                              |
 | --------------- | ---------------------------------------------------- |
 | Geant4 11.4.2   | `~/Documents/GEANT4/install-v11.4.2`                 |
 | BxDecay0        | `~/Documents/BXDECAY0/install`                       |
-| remage 0.25.0   | `~/Documents/REMAGE/install-remage-v0.25.0`          |
+| remage 0.26.0   | `~/Documents/REMAGE/install-remage-v0.26.0`          |
 | legend-metadata | `~/Documents/REMAGE/legend-metadata`                 |
 | bacon2Data      | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
