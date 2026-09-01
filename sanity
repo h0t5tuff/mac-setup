@@ -106,14 +106,22 @@ print -P "%B🧠 sanity%b — $(date '+%Y-%m-%d %H:%M')   repo: ${repo/#$HOME/~}
 # │            Checks             │
 # ╰───────────────────────────────╯
 section "🖥️  Shell & flavor"
-info "zsh $ZSH_VERSION · $(uname -m) · macOS $(sw_vers -productVersion 2>/dev/null)"
 typeset arch=$(uname -m)
+info "zsh $ZSH_VERSION · $arch · macOS $(sw_vers -productVersion 2>/dev/null)"
 if [[ -z ${ENV_FLAVOR:-} ]]; then
   fail "ENV_FLAVOR unset — .zshrc env not loaded in this shell"
 elif [[ $arch == arm64 && $ENV_FLAVOR == 💻 ]] || [[ $arch == x86_64 && $ENV_FLAVOR == 🖥️ ]]; then
   pass "flavor $ENV_FLAVOR matches arch $arch"
 else
   warn "flavor $ENV_FLAVOR vs arch $arch — check arm64()/amd64()"
+fi
+# free disk on the boot volume — cheap general-health signal (builds eat space)
+typeset -i diskuse=$(df -Pk / | awk 'NR==2{gsub(/%/,"",$5); print $5}')
+typeset diskfree=$(df -Ph / | awk 'NR==2{print $4}')
+if (( diskuse >= 90 )); then
+  warn "disk ${diskuse}%% used (${diskfree} free)"   # %% -> literal % under print -P
+else
+  pass "disk ${diskuse}%% used (${diskfree} free)"
 fi
 
 section "🔗 Dotfile symlinks"
@@ -214,8 +222,9 @@ else
     warn "Python3_EXECUTABLE = ${Python3_EXECUTABLE:-unset}"
   fi
 fi
-if python3 -m pip --version >/dev/null 2>&1; then
-  pass "pip OK ($(python3 -m pip --version 2>/dev/null | awk '{print $2}'))"
+typeset pipver=$(python3 -m pip --version 2>/dev/null | awk '{print $2}')
+if [[ -n $pipver ]]; then
+  pass "pip OK ($pipver)"
 else
   fail "python3 -m pip broken"
 fi
@@ -223,8 +232,11 @@ fi
 
 # Jupyter lives in ~/venvs/v (not pipx, not brew) so widgets resolve — see README
 if [[ -x ~/venvs/v/bin/jupyter ]]; then
-  pass "jupyter in venv ($(~/venvs/v/bin/jupyter lab --version 2>/dev/null))"
-  if ~/venvs/v/bin/jupyter labextension list 2>&1 | grep -q jupyterlab-manager; then
+  # query the venv's python directly: `jupyter lab --version` and
+  # `jupyter labextension list` each spin up ~1.5s, imports are ~0.05s.
+  # For JupyterLab 4 prebuilt extensions, an importable package == enabled.
+  pass "jupyter in venv ($(~/venvs/v/bin/python -c 'import jupyterlab as j; print(j.__version__)' 2>/dev/null))"
+  if ~/venvs/v/bin/python -c 'import jupyterlab_widgets' 2>/dev/null; then
     pass "ipywidgets frontend enabled"
   else
     warn "jupyterlab_widgets missing — widgets will render blank"
@@ -331,8 +343,11 @@ fi
 section "🔮 remage"
 check_dir "REMAGE_PREFIX" "${REMAGE_PREFIX:-}"
 if command -v remage >/dev/null; then
-  if remage --version >/dev/null 2>&1; then
-    pass "remage $(remage --version 2>/dev/null | head -1)"
+  # DYLD_FALLBACK_LIBRARY_PATH is SIP-stripped from this script's env, so remage
+  # can't locate libremage.dylib unless we re-supply it on the command itself
+  typeset rmg_ver=$(DYLD_FALLBACK_LIBRARY_PATH="$REMAGE_PREFIX/lib:$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib" remage --version 2>/dev/null | head -1)
+  if [[ -n $rmg_ver ]]; then
+    pass "remage $rmg_ver"
   else
     warn "remage found but --version failed"
   fi
