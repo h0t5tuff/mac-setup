@@ -100,4 +100,4 @@ Built from source and wired up in `.zshrc`; ROOT comes from Homebrew.
 | BxDecay0        | `~/Documents/BXDECAY0/install`                       |
 | remage 0.26.0   | `~/Documents/REMAGE/install-remage-v0.26.0`          |
 | legend-metadata | `~/Documents/REMAGE/legend-metadata`                 |
-| bacon2Data      | `~/Documents/ROOT/bacon2Data` (`bobj/`, `compiled/`) |
+| bacon2Data      | `~/Documents/bacon2Data` (`bobj/`, `compiled/`)      |
