@@ -21,21 +21,21 @@ HostName github.com
 User git
 IdentityFile ~/.ssh/id_ed25519_github
 
-#DAQTensor
+# DAQTensor
 
 Host daqTensor
 HostName 64.106.63.220
 User Tensor
 IdentityFile ~/.ssh/id_ed25519_daqTensor
 
-#DAQbacon
+# DAQbacon
 
 Host daqbacon
 HostName 64.106.63.220
 User bacon
 IdentityFile ~/.ssh/id_ed25519_daqbacon
 
-# NERSC — key + cert issued by `sshproxy -u tens0r` (short-lived, ~24h)
+# NERSC
 
 Host nersc
 HostName perlmutter.nersc.gov
@@ -43,3 +43,10 @@ User tens0r
 IdentityFile ~/.ssh/nersc
 CertificateFile ~/.ssh/nersc-cert.pub
 IdentitiesOnly yes
+
+# CERN
+
+Host cern
+HostName lxplus.cern.ch
+User melmikaw
+IdentityFile ~/.ssh/id_ed25519_cern
