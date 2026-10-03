@@ -202,11 +202,11 @@ export DYLD_FALLBACK_LIBRARY_PATH="$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE
 # │         ☢️ Sims               │
 # ╰───────────────────────────────╮
 # bacon2Data
-export BACONHOME="$HOME/Documents/bacon2Data"
+export BACONHOME="$HOME/Documents"    # parent of the repo: bobj/Makefile uses $(BACONHOME)/bacon2Data/bobj
 export BOBJ="$HOME/Documents/bacon2Data/bobj"
 export COMPILED="$HOME/Documents/bacon2Data/compiled"
 export ROOTDATA="$COMPILED/rootData"   # anacg input (per-run raw/sim waveforms)
 export CAENDATA="$COMPILED/caenData"   # anacg output / postAna + summary input
-path=("$BOBJ" "$COMPILED" "$BACONHOME" $path)
+path=("$BOBJ" "$COMPILED" "$BACONHOME/bacon2Data" $path)
 
 torrent() { ~/venvs/torrent/bin/python "$HOME/Library/Mobile Documents/com~apple~CloudDocs/MechaTronics/T/torrent_dl.py" "$@"; }

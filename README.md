@@ -42,12 +42,22 @@ deactivate
 
 ## Python versions
 
-**3.14 is the one you use.** It is `HOMEBREW_PYTHON`, backs `~/venvs/v`, and is
-what `python3` resolves to. `brew leaves` also lists **python@3.13**, which looks
-orphaned but is not: remage bundles a venv (`share/remage_venv`) built against it,
-and that venv supplies `h5py`/`matplotlib` to the LEGEND analysis scripts.
-`brew uses --installed python@3.13` returns nothing because a venv is not a
-formula — **removing it silently breaks remage.**
+**3.14 is the only Python.** It is `HOMEBREW_PYTHON`, backs `~/venvs/v`, and is
+what `python3` resolves to. Everything else is built on it too: remage (v0.26's
+bundled `share/remage_venv`), pipx apps, and `~/venvs/torrent`.
+
+`~/venvs/torrent` (used by the `torrent` shell function) is the one special case:
+PyPI's `libtorrent` ships no 3.14 wheels, so the venv takes its bindings from
+Homebrew's `libtorrent-rasterbar` instead — a symlink to
+`/opt/homebrew/lib/python3.14/site-packages/libtorrent.cpython-314-darwin.so`
+in the venv's site-packages. Rebuild it with:
+
+```sh
+python3 -m venv ~/venvs/torrent
+ln -s /opt/homebrew/lib/python3.14/site-packages/libtorrent.cpython-314-darwin.so \
+      "$(~/venvs/torrent/bin/python -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])')/"
+~/venvs/torrent/bin/pip install ipykernel
+```
 
 ## Jupyter lives in the venv
 

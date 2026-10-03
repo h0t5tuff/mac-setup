@@ -5,7 +5,7 @@
 
 # ── core / pinned ──────────────────────────────────────────────
 brew "python@3.14"   # pinned shell python (HOMEBREW_PYTHON in .zshrc), venv ~/venvs/v
-brew "python@3.13"   # REQUIRED: remage bundles a venv built on 3.13 — do not remove
+brew "libtorrent-rasterbar"   # py3.14 bindings for ~/venvs/torrent (PyPI libtorrent has no 3.14 wheels)
 brew "gsl"           # BxDecay0 dependency (also used by ROOT)
 brew "pkgconf"
 brew "cmake"
