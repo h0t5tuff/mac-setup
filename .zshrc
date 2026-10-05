@@ -191,7 +191,7 @@ export REMAGE_PREFIX="$REMAGE_HOME/install-remage-v0.26.0"
 path=("$REMAGE_PREFIX/bin" $path)
 
 # legend-metadata (pylegendmeta / dbetto read $LEGEND_METADATA)
-export LEGEND_METADATA="$REMAGE_HOME/legend-metadata"
+export LEGEND_METADATA="$HOME/Documents/Legend-metadata"
 
 # CMake / dynamic-linker hints for the whole stack
 export CMAKE_PREFIX_PATH="$BXDECAY0_PREFIX;$GEANT4_BASE;/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"

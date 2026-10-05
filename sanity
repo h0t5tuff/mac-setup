@@ -127,6 +127,7 @@ fi
 section "🔗 Dotfile symlinks"
 check_link ~/.zshrc $repo/.zshrc
 check_link ~/.ssh/config $repo/config
+check_link ~/.gitconfig $repo/gitconfig
 check_link ~/sanity $repo/sanity
 check_link ~/.local/bin/sanity $repo/sanity
 [[ -x $repo/sanity ]] && pass "sanity is executable" || fail "sanity not executable (chmod +x)"
@@ -354,6 +355,7 @@ if command -v remage >/dev/null; then
 else
   warn "remage not on PATH"
 fi
+check_dir "LEGEND_METADATA" "${LEGEND_METADATA:-}" warn
 
 section "🥓 bacon2Data"
 check_dir "BACONHOME" "${BACONHOME:-}" warn
@@ -463,6 +465,57 @@ if (( net )); then
     warn "nersc unreachable (sshproxy/MFA may be needed)"
   fi
 fi
+
+# ╭───────────────────────────────╮
+# │   ♻️  Reproducible from repo   │
+# ╰───────────────────────────────╯
+section "♻️  Reproducible from repo"
+if command -v brew >/dev/null; then
+  # A cask counts as satisfied if its app is already in /Applications (installed by
+  # hand before brew managed it) — new Macs still get it from the Brewfile.
+  typeset -a unmet hand real
+  typeset bout cask app; typeset -i brc
+  bout=$(brew bundle check --file $repo/Brewfile --verbose --no-upgrade 2>&1); brc=$?   # unmet lines go to stderr
+  unmet=(${(f)"$(print -r -- $bout | sed -n 's/^→ //p')"})
+  for u in $unmet; do
+    if [[ $u =~ '^Cask ([^ ]+) needs to be installed' ]]; then
+      cask=$match[1]
+      app=$(brew info --cask --json=v2 $cask 2>/dev/null \
+            | jq -r '.casks[0].artifacts[] | objects | .app // empty | .[] | strings' 2>/dev/null | head -1)
+      if [[ -n $app && ( -d /Applications/$app || -d ~/Applications/$app ) ]]; then
+        hand+=($cask); continue
+      fi
+    fi
+    real+=("$u")
+  done
+  if (( brc && ! ${#unmet} )); then      # failed, but output format unrecognised
+    warn "Brewfile not satisfied — run: brew bundle check --file $repo/Brewfile --verbose"
+  elif (( ${#real} )); then
+    warn "Brewfile not satisfied: ${(j:; :)real}"
+  else
+    pass "everything in Brewfile is installed"
+  fi
+  (( ${#hand} )) && info "installed by hand, not via brew (fine): ${(j:, :)hand}"
+  if (( ! quick )); then
+    typeset -a extra=(${(f)"$(brew bundle cleanup --file $repo/Brewfile 2>/dev/null | grep -vE '^(Would|Run )')"})
+    (( ${#extra} )) && warn "${#extra} installed package(s) not in Brewfile — brew bundle cleanup --file $repo/Brewfile" \
+                    || pass "no installs missing from Brewfile"
+  fi
+fi
+check_lock() {  # check_lock <venv> <lockfile>
+  typeset venv=$1 lock=$2
+  [[ -x $venv/bin/python ]] || { warn "${venv/#$HOME/~} missing"; return; }
+  [[ -f $lock ]]            || { warn "lockfile ${lock/#$HOME/~} missing"; return; }
+  typeset -a have want extra missing
+  have=(${(f)"$($venv/bin/python -m pip freeze 2>/dev/null)"})
+  want=(${(f)"$(grep -v '^#' $lock)"})
+  extra=(${have:|want}); missing=(${want:|have})     # count arrays, not joined strings
+  typeset -i drift=$(( ${#extra} + ${#missing} ))
+  (( drift )) && warn "${venv/#$HOME/~} drifted from ${lock:t} ($drift line(s)) — refresh with pip freeze" \
+              || pass "${venv/#$HOME/~} matches venvs/${lock:t}"
+}
+check_lock ~/venvs/v       $repo/venvs/v.txt
+check_lock ~/venvs/torrent $repo/venvs/torrent.txt
 
 # ╭───────────────────────────────╮
 # │          🧾 Summary           │
