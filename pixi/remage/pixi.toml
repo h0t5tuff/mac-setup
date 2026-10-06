@@ -1,0 +1,14 @@
+[workspace]
+authors = ["Tensor <physmath99@gmail.com>"]
+channels = ["conda-forge"]
+name = "remage"
+platforms = ["osx-arm64", "osx-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+remage = "==1.1.0"
+legend-pygeom-tools = ">=0.7.1,<0.8"
+legend-pygeom-hpges = ">=0.10.0,<0.11"
+legend-pygeom-optics = ">=0.18.0,<0.19"

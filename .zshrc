@@ -163,39 +163,33 @@ path+=("$HOME/.local/bin")
 alias jn='~/venvs/v/bin/jupyter notebook'
 alias jl='~/venvs/v/bin/jupyter lab'
 alias venv="source ~/venvs/v/bin/activate"
-if [[ -o interactive ]]; then
+# skip inside `pixi shell`: it inherits an already-set-up PATH, and the reset would
+# push Homebrew's cmake/compilers ahead of the pixi env's (mixing C++ runtimes)
+if [[ -o interactive && -z ${PIXI_IN_SHELL:-} ]]; then
   if [[ $(uname -m) == arm64 ]]; then arm64; else amd64; fi
+elif [[ -n ${PIXI_IN_SHELL:-} ]]; then
+  # drop the Homebrew-ROOT vars (thisroot.sh) inherited from the parent shell, so the env's
+  # own python/ROOT/cmake are used — same list the bin/ wrappers clear
+  unset PYTHONPATH ROOTSYS ROOT_INCLUDE_PATH DYLD_LIBRARY_PATH LD_LIBRARY_PATH LIBPATH SHLIB_PATH \
+        JUPYTER_PATH JUPYTER_CONFIG_PATH JUPYTER_CONFIG_DIR CMAKE_PREFIX_PATH
 fi
 
 
 # ╭───────────────────────────────╮
 # │  ☢️ Physics Simulation Stack  │
 # ╰───────────────────────────────╯
-# Geant4
-export GEANT4_BASE="$HOME/Documents/GEANT4/install-v11.4.2"
-if [[ -f "$GEANT4_BASE/bin/geant4.sh" ]]; then
-  source "$GEANT4_BASE/bin/geant4.sh"
-fi
-export Geant4_DIR="$GEANT4_BASE/lib/cmake/Geant4"
-path=("$GEANT4_BASE/bin" $path)
+# remage + Geant4 come from pixi (conda-forge) — no source builds. Workspaces in mac-setup/pixi/:
+#   remage, remage-cpp   pixi/remage  remage 1.1 (Geant4 11.3, HDF5/LH5 + ROOT output)
+#   g4, g4build          pixi/geant4  Geant4 11.4 (Qt) + ROOT + cmake + compilers, for your own apps
+# all four are `pixi run` wrappers in ~/.local/bin (mac-setup/bin), so they work from bash scripts too
 export G4VIS_DEFAULT_DRIVER=OGLSQt
-
-# BxDecay0
-export BXDECAY0_HOME="$HOME/Documents/BXDECAY0"
-export BXDECAY0_PREFIX="$BXDECAY0_HOME/install"
-export PKG_CONFIG_PATH="$BXDECAY0_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-
-# remage
-export REMAGE_HOME="$HOME/Documents/REMAGE"
-export REMAGE_PREFIX="$REMAGE_HOME/install-remage-v0.26.0"
-path=("$REMAGE_PREFIX/bin" $path)
 
 # legend-metadata (pylegendmeta / dbetto read $LEGEND_METADATA)
 export LEGEND_METADATA="$HOME/Documents/Legend-metadata"
 
-# CMake / dynamic-linker hints for the whole stack
-export CMAKE_PREFIX_PATH="$BXDECAY0_PREFIX;$GEANT4_BASE;/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"
-export DYLD_FALLBACK_LIBRARY_PATH="$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib:$REMAGE_PREFIX/lib:${DYLD_FALLBACK_LIBRARY_PATH:-/usr/local/lib:/usr/lib}"
+# CMake hint: Homebrew ROOT (bacon2Data & co.). Inside the pixi Geant4 env, g4build puts
+# $CONDA_PREFIX first so its own ROOT/Geant4 win over these.
+[[ -z ${PIXI_IN_SHELL:-} ]] && export CMAKE_PREFIX_PATH="/opt/homebrew/opt/root;/opt/homebrew;${CMAKE_PREFIX_PATH:-}"
 
 
 # ╭───────────────────────────────╮

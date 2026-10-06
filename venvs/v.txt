@@ -88,6 +88,7 @@ kiwisolver==1.5.1
 lark==1.3.1
 legend_lh5io==0.2.7
 legend_pydataobj==2.0.3
+legend_pygeom_hades==0.2.1
 legend_pygeom_hpges==0.10.0
 legend_pygeom_optics==0.18.0
 legend_pygeom_tools==0.7.1

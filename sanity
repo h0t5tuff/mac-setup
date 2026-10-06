@@ -162,8 +162,6 @@ fi
 typeset -a want_on_path
 want_on_path=("$HOME/.local/bin")
 [[ -n $hb_python ]]           && want_on_path+=("$hb_python/libexec/bin")
-[[ -n ${GEANT4_BASE:-} ]]     && want_on_path+=("$GEANT4_BASE/bin")
-[[ -n ${REMAGE_PREFIX:-} ]]   && want_on_path+=("$REMAGE_PREFIX/bin")
 [[ -n ${BOBJ:-} ]]            && want_on_path+=("$BOBJ")
 [[ -n ${COMPILED:-} ]]        && want_on_path+=("$COMPILED")
 for p in $want_on_path; do
@@ -302,60 +300,59 @@ if (( ! quick )) && command -v root >/dev/null; then
   fi
 fi
 
-section "☢️  Geant4"
-check_dir "GEANT4_BASE" "${GEANT4_BASE:-}"
-if command -v geant4-config >/dev/null; then
-  pass "geant4-config $(geant4-config --version)"
-  if (( ! quick )); then
-    typeset g4data=$(geant4-config --check-datasets 2>/dev/null)
-    typeset -i g4miss=$(print -r -- "$g4data" | grep -ciE 'notfound|not found|missing')
-    if [[ -z $g4data ]]; then
-      warn "could not query Geant4 datasets"
-    elif (( g4miss )); then
-      fail "$g4miss Geant4 dataset(s) missing — geant4-config --install-datasets"
+section "📦 pixi physics envs"
+if ! command -v pixi >/dev/null; then
+  fail "pixi not found (brew install pixi)"
+else
+  pass "$(pixi --version)"
+  typeset ws
+  for ws in remage geant4; do
+    if [[ -f $repo/pixi/$ws/pixi.toml && -f $repo/pixi/$ws/pixi.lock ]]; then
+      pass "workspace pixi/$ws (manifest + lock)"
     else
-      pass "all Geant4 datasets installed"
+      fail "workspace pixi/$ws is missing pixi.toml or pixi.lock"
     fi
-  fi
-else
-  fail "geant4-config not found"
-fi
-if [[ -n ${Geant4_DIR:-} && -f ${Geant4_DIR}/Geant4Config.cmake ]]; then
-  pass "Geant4Config.cmake present"
-else
-  warn "Geant4Config.cmake not found (Geant4_DIR = ${Geant4_DIR:-unset})"
-fi
-[[ -n ${G4VIS_DEFAULT_DRIVER:-} ]] && pass "G4VIS_DEFAULT_DRIVER = $G4VIS_DEFAULT_DRIVER" || warn "G4VIS_DEFAULT_DRIVER unset"
-
-section "🧬 BxDecay0"
-check_dir "BXDECAY0_PREFIX" "${BXDECAY0_PREFIX:-}"
-if pkg-config --exists bxdecay0 2>/dev/null; then
-  pass "pkg-config bxdecay0 $(pkg-config --modversion bxdecay0)"
-else
-  typeset -a pcs
-  pcs=(${BXDECAY0_PREFIX:-/nonexistent}/lib/pkgconfig/*.pc(N))
-  if (( ${#pcs} )); then
-    warn "bxdecay0 not visible to pkg-config (have: ${(j:, :)${(@)pcs:t}})"
-  else
-    warn "no .pc files under BXDECAY0_PREFIX/lib/pkgconfig"
-  fi
+  done
 fi
 
-section "🔮 remage"
-check_dir "REMAGE_PREFIX" "${REMAGE_PREFIX:-}"
-if command -v remage >/dev/null; then
-  # DYLD_FALLBACK_LIBRARY_PATH is SIP-stripped from this script's env, so remage
-  # can't locate libremage.dylib unless we re-supply it on the command itself
-  typeset rmg_ver=$(DYLD_FALLBACK_LIBRARY_PATH="$REMAGE_PREFIX/lib:$GEANT4_BASE/lib:$BXDECAY0_PREFIX/lib" remage --version 2>/dev/null | head -1)
-  if [[ -n $rmg_ver ]]; then
-    pass "remage $rmg_ver"
-  else
-    warn "remage found but --version failed"
-  fi
+section "🔮 remage (pixi/remage)"
+check_link ~/.local/bin/remage $repo/bin/remage
+check_link ~/.local/bin/remage-cpp $repo/bin/remage-cpp
+if [[ $(command -v remage) == $HOME/.local/bin/remage ]]; then
+  pass "remage on PATH is the pixi wrapper"
 else
-  warn "remage not on PATH"
+  fail "remage resolves to ${$(command -v remage):-nothing} (expected ~/.local/bin/remage)"
+fi
+if (( ! quick )); then
+  typeset rich=$(remage-cpp --version-rich 2>/dev/null)
+  typeset rmg_ver=${${(M)${(f)rich}:#version:*}#version: }
+  typeset rmg_g4=${${${(M)${(f)rich}:#*Geant4 version:*}##*geant4-}%% *}
+  [[ -n $rmg_ver ]] && pass "remage $rmg_ver (Geant4 $rmg_g4)" || fail "remage-cpp --version-rich failed"
+  [[ $rich == *"HDF5 support: yes"* ]] && pass "HDF5 / LH5 output supported" || fail "remage has no HDF5 support (no LH5 output)"
 fi
 check_dir "LEGEND_METADATA" "${LEGEND_METADATA:-}" warn
+
+section "☢️  Geant4 for your own apps (pixi/geant4)"
+check_link ~/.local/bin/g4 $repo/bin/g4
+check_link ~/.local/bin/g4build $repo/bin/g4build
+if (( ! quick )); then
+  typeset g4v=$(g4 geant4-config --version 2>/dev/null)
+  [[ -n $g4v ]] && pass "Geant4 $g4v" || fail "g4 geant4-config failed"
+  [[ $(g4 geant4-config --has-feature qt 2>/dev/null) == yes ]] && pass "Qt UI + OpenGL vis built in" \
+                                                             || warn "pixi Geant4 has no Qt (headless noqt_* build?)"
+  typeset g4data=$(g4 geant4-config --check-datasets 2>/dev/null)
+  typeset -i g4miss=$(print -r -- "$g4data" | grep -ciE 'notfound|not found|missing')
+  if [[ -z $g4data ]]; then
+    warn "could not query Geant4 datasets"
+  elif (( g4miss )); then
+    fail "$g4miss Geant4 dataset(s) missing"
+  else
+    pass "all Geant4 datasets installed"
+  fi
+  typeset g4root=$(g4 root-config --version 2>/dev/null)
+  [[ -n $g4root ]] && pass "ROOT $g4root alongside it" || warn "no ROOT in pixi/geant4"
+fi
+[[ -n ${G4VIS_DEFAULT_DRIVER:-} ]] && pass "G4VIS_DEFAULT_DRIVER = $G4VIS_DEFAULT_DRIVER" || warn "G4VIS_DEFAULT_DRIVER unset"
 
 section "🥓 bacon2Data"
 check_dir "BACONHOME" "${BACONHOME:-}" warn
@@ -373,7 +370,7 @@ else
 fi
 typeset var val entry
 typeset -a parts bad
-for var in CMAKE_PREFIX_PATH PKG_CONFIG_PATH; do
+for var in CMAKE_PREFIX_PATH; do
   val=${(P)var}
   if [[ -z $val ]]; then
     warn "$var unset"
@@ -390,22 +387,6 @@ for var in CMAKE_PREFIX_PATH PKG_CONFIG_PATH; do
     pass "$var ok (${#parts} entries)"
   fi
 done
-# DYLD_* never survives into a script (macOS SIP strips it when launching
-# /bin/zsh), so verify the fallback lib dirs from .zshrc's recipe instead
-typeset -a dyld_libs
-dyld_libs=()
-[[ -n ${GEANT4_BASE:-} ]]      && dyld_libs+=("$GEANT4_BASE/lib")
-[[ -n ${BXDECAY0_PREFIX:-} ]]  && dyld_libs+=("$BXDECAY0_PREFIX/lib")
-[[ -n ${REMAGE_PREFIX:-} ]]    && dyld_libs+=("$REMAGE_PREFIX/lib")
-bad=()
-for entry in $dyld_libs; do
-  [[ -d $entry ]] || bad+=($entry)
-done
-if (( ${#bad} )); then
-  warn "DYLD fallback lib dirs missing: ${(j:, :)bad}"
-else
-  pass "DYLD fallback lib dirs exist (${#dyld_libs} dirs; var itself is SIP-stripped in scripts)"
-fi
 
 section "🔐 SSH"
 typeset perms=$(stat -f '%Lp' ~/.ssh 2>/dev/null)

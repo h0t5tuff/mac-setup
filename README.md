@@ -1,14 +1,15 @@
 # mac-setup
 
-My macOS dev environment, version-controlled. Four files are **symlinked**
+My macOS dev environment, version-controlled. These files are **symlinked**
 into place, so edits here go live instantly.
 
-| repo file   | symlinked to                      |
-| ----------- | --------------------------------- |
-| `.zshrc`    | `~/.zshrc`                        |
-| `config`    | `~/.ssh/config`                   |
-| `gitconfig` | `~/.gitconfig`                    |
-| `sanity`    | `~/sanity`, `~/.local/bin/sanity` |
+| repo file                                | symlinked to                      |
+| ---------------------------------------- | --------------------------------- |
+| `.zshrc`                                 | `~/.zshrc`                        |
+| `config`                                 | `~/.ssh/config`                   |
+| `gitconfig`                              | `~/.gitconfig`                    |
+| `sanity`                                 | `~/sanity`, `~/.local/bin/sanity` |
+| `bin/{remage,remage-cpp,g4,g4build}`     | `~/.local/bin/…`                  |
 
 ## What lives where
 
@@ -18,7 +19,7 @@ into place, so edits here go live instantly.
 | `~/venvs/v` (Jupyter + LEGEND stack)    | `venvs/v.txt` (exact `pip freeze` lock)  |
 | `~/venvs/torrent`                       | `venvs/torrent.txt` + recipe below       |
 | pipx apps                               | bootstrap below (`black`)                |
-| Geant4 / BxDecay0 / remage              | build recipes below                      |
+| remage, Geant4 (+ ROOT for own apps)    | `pixi/remage`, `pixi/geant4` (exact lock) |
 | shell, SSH, git                         | the symlinked files above                |
 
 Run `sanity` after any change — it also flags drift between the machine and
@@ -43,6 +44,7 @@ ln -sfn "$REPO/config"    ~/.ssh/config
 ln -sfn "$REPO/gitconfig" ~/.gitconfig
 ln -sfn "$REPO/sanity"    ~/sanity && chmod +x "$REPO/sanity"
 ln -sfn ~/sanity          ~/.local/bin/sanity
+for b in remage remage-cpp g4 g4build; do ln -sfn "$REPO/bin/$b" ~/.local/bin/$b; done
 
 brew bundle --file "$REPO/Brewfile"     # formulae, casks (VS Code, MacTeX), VS Code extensions
 
@@ -53,9 +55,12 @@ python3 -m venv ~/venvs/v
 ~/venvs/v/bin/pip install -r "$REPO/venvs/v.txt"
 ~/venvs/v/bin/python -m ipykernel install --user --name v --display-name "Python 3.14 (v)"
 ~/venvs/v/bin/playwright install chromium   # headless browser for `nbconvert --to webpdf`
+
+(cd "$REPO/pixi/remage" && pixi install)    # exact envs from pixi.lock (see Physics stack)
+(cd "$REPO/pixi/geant4" && pixi install)
 ```
 
-Then build the torrent venv and the physics stack (sections below).
+Then build the torrent venv (below).
 
 ### Keeping it reproducible
 
@@ -67,8 +72,9 @@ brew bundle cleanup --file "$REPO/Brewfile"    # lists installs missing from the
 ## Python versions
 
 **3.14 is the only Python.** It is `HOMEBREW_PYTHON`, backs `~/venvs/v`, and is
-what `python3` resolves to. Everything else is built on it too: remage (v0.26's
-bundled `share/remage_venv`), pipx apps, and `~/venvs/torrent`. The few packages
+what `python3` resolves to. pipx apps and `~/venvs/torrent` are built on it too.
+(The pixi environments carry their own conda-forge Python; they're isolated and
+never on `PATH` outside `pixi run`/`pixi shell`.) The few packages
 in Homebrew's global site-packages (numpy, tbb, xrootd, cryptography, …) are
 installed by brew formulae as dependencies — never `pip install` there.
 
@@ -132,56 +138,53 @@ Copy the keys from the old Mac (`chmod 600`) or generate fresh — private keys
 never go in this repo. The CERN key must be registered in the CERN account
 portal; lxplus still asks for 2FA from outside CERN.
 
-## Physics stack (source builds)
+## Physics stack (pixi)
 
-Built from source and wired up in `.zshrc`; ROOT, HDF5, Qt, Xerces-C and CLHEP
-come from the Brewfile.
+remage and Geant4 come from conda-forge through two pixi workspaces — no source
+builds. Each has `pixi.toml` + an exact `pixi.lock` for `osx-arm64` and `osx-64`;
+`.pixi/config.toml` sets `detached-environments = true`, so the environments
+(hard-linked packages, ~11 GB shared) live in `~/Library/Caches/rattler`, not iCloud.
 
-| project         | source                                         | install                                     |
-| --------------- | ---------------------------------------------- | ------------------------------------------- |
-| Geant4 11.4.2   | github.com/Geant4/geant4 @ `v11.4.2`           | `~/Documents/GEANT4/install-v11.4.2`        |
-| BxDecay0 1.2.1  | github.com/BxCppDev/bxdecay0 @ `9a3cf59`       | `~/Documents/BXDECAY0/install`              |
-| remage 0.26.0   | github.com/legend-exp/remage @ `v0.26.0`       | `~/Documents/REMAGE/install-remage-v0.26.0` |
-| legend-metadata | github.com/legend-exp/legend-metadata (private) | `~/Documents/Legend-metadata`              |
-| bacon2Data      | github.com/liebercanis/bacon2Data              | `~/Documents/bacon2Data` (`bobj/`, `compiled/`) |
+| workspace     | contents                                                                                     | commands               |
+| ------------- | -------------------------------------------------------------------------------------------- | ---------------------- |
+| `pixi/remage` | remage 1.1.0 (Geant4 11.3.2 MT, GDML, BxDecay0, **HDF5/LH5**) + `legend-pygeom-{tools,hpges,optics}` | `remage`, `remage-cpp` |
+| `pixi/geant4` | Geant4 11.4.3 **Qt** build, ROOT 6.40.04, cmake, compilers, expat headers — for your own apps | `g4`, `g4build`        |
 
-Build in this order — each step needs the previous install:
+The commands are `pixi run` wrappers (`bin/`, symlinked into `~/.local/bin`), so
+activation (Geant4 data paths) is automatic and they work from bash scripts too.
 
 ```sh
-J=$(sysctl -n hw.ncpu)
-
-# Geant4 — MT, GDML, Qt vis, datasets
-cd ~/Documents/GEANT4
-git clone --branch v11.4.2 https://github.com/Geant4/geant4.git
-cmake -S geant4 -B build-v11.4.2 -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=$HOME/Documents/GEANT4/install-v11.4.2 \
-  -DGEANT4_BUILD_MULTITHREADED=ON -DGEANT4_INSTALL_DATA=ON \
-  -DGEANT4_USE_GDML=ON -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_EXPAT=ON
-  # for remage LH5 output, add: -DGEANT4_USE_HDF5=ON -DHDF5_ROOT=/opt/homebrew/opt/hdf5
-cmake --build build-v11.4.2 -j$J --target install
-
-# BxDecay0 — with its Geant4 extension
-cd ~/Documents/BXDECAY0
-git clone https://github.com/BxCppDev/bxdecay0.git && git -C bxdecay0 checkout 9a3cf59
-cmake -S bxdecay0 -B build -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=$HOME/Documents/BXDECAY0/install \
-  -DCMAKE_PREFIX_PATH="$HOME/Documents/GEANT4/install-v11.4.2;/opt/homebrew/opt/xerces-c;/opt/homebrew" \
-  -DBXDECAY0_WITH_GEANT4_EXTENSION=ON -DBXDECAY0_INSTALL_DBD_GA_DATA=ON
-cmake --build build -j$J --target install
-
-# remage — ROOT and BxDecay0 support are auto-detected
-cd ~/Documents/REMAGE
-git clone https://github.com/legend-exp/remage.git && git -C remage checkout v0.26.0
-cmake -S remage -B build-remage-v0.26.0 -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=$HOME/Documents/REMAGE/install-remage-v0.26.0 \
-  -DCMAKE_PREFIX_PATH="$HOME/Documents/GEANT4/install-v11.4.2;$HOME/Documents/BXDECAY0/install;/opt/homebrew/opt/xerces-c;/opt/homebrew"
-cmake --build build-remage-v0.26.0 -j$J --target install
-remage-cpp --version-rich     # lists ROOT / BxDecay0 / GDML / HDF5 support
+remage -t 8 -m -g geom.gdml -o out.lh5 -- run.mac   # -m merges per-thread LH5 files; ROOT is merged anyway
+remage-cpp --version-rich                          # "ROOT CERN no" is fine: it only silences ROOT's stack traces
+g4build                                            # configure + build ./ into build-pixi/ against pixi/geant4
+g4 ./build-pixi/sim run.mac                        # run it inside the env
 ```
 
-`RMG_USE_ROOT` / `RMG_USE_BXDECAY0` don't switch features on — support is enabled
-whenever the dependency is found; setting the flag `ON` only makes a missing
-dependency a hard error instead of a silent skip.
+Pitfalls, all handled here:
+
+- `remage` exits **2** when warnings were printed — add `--ignore-warnings` where a script checks the exit code.
+- conda-forge ships Geant4 11.4.3 as `noqt_*` (headless) and `qt_*`; the manifest pins `qt_*`, which
+  needs macOS ≥ 14 — declared on the platform entries (`mac-arm64`, `mac-intel`).
+- `expat` is listed explicitly: Geant4's CMake config needs its headers; without them CMake picks the
+  macOS SDK's older expat and fails.
+- `g4build` puts `$CONDA_PREFIX` first on `CMAKE_PREFIX_PATH`, so the env's ROOT/Geant4 win over
+  Homebrew's — one C++ runtime per binary.
+- `.zshrc` skips its PATH reset inside `pixi shell` (`$PIXI_IN_SHELL`), so the env's tools stay first there.
+- Homebrew ROOT's `thisroot.sh` (sourced by `.zshrc`) exports `PYTHONPATH`, `ROOTSYS`, `CMAKE_PREFIX_PATH`, …;
+  left alone, `import ROOT` inside `pixi/geant4` loads *Homebrew's* ROOT. The `bin/` wrappers and
+  `pixi shell` (via `.zshrc`) clear them, so each env sees only its own ROOT.
+
+Projects using it:
+
+| project                       | location                                        | how                              |
+| ----------------------------- | ----------------------------------------------- | -------------------------------- |
+| LEGEND1000-Simulation         | `~/Documents/LEGEND1000-Simulation`             | `remage`                         |
+| geant4-11-tutorial            | `~/Documents/GEANT4/geant4-11-tutorial`         | `g4build`, `g4 ./build-pixi/sim` |
+| BACONCalibrationSimulation    | `~/Documents/BACONCalibrationSimulation`        | `g4build`; run from a directory *next to* the repo (`fSTLFileDir` is `../BACONCalibrationSimulation/STLFiles/`) |
+| legend-metadata               | `~/Documents/Legend-metadata` (private, legend-exp) | `$LEGEND_METADATA`           |
+| bacon2Data                    | `~/Documents/bacon2Data` (liebercanis)          | Homebrew ROOT                    |
+
+Source-build recipes for the old stack live in `~/Documents/Physics-Simulation-Stack-Build-AppleSilicon-and-Linux`.
 
 ## Not automated (do by hand)
 

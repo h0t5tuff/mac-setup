@@ -6,23 +6,17 @@
 # ── core / pinned ──────────────────────────────────────────────
 brew "python@3.14"   # pinned shell python (HOMEBREW_PYTHON in .zshrc), venv ~/venvs/v
 brew "libtorrent-rasterbar"   # py3.14 bindings for ~/venvs/torrent (PyPI libtorrent has no 3.14 wheels)
-brew "gsl"           # BxDecay0 dependency (also used by ROOT)
+brew "gsl"           # ROOT dependency
 brew "pkgconf"
 brew "cmake"
 brew "make"
 brew "ninja"
-brew "expat"
-brew "zlib"
 
 # ── physics stack ──────────────────────────────────────────────
+# Geant4, remage, BxDecay0 and their deps come from pixi (conda-forge) — see pixi/.
 brew "root"          # CERN ROOT (PyROOT, bacon2Data)
-brew "clhep"
-brew "open-mpi"
-brew "qt"            # Geant4 OGLSQt vis driver
-brew "xerces-c"      # Geant4 GDML
-brew "jpeg"
-brew "opencascade"
-brew "hdf5"          # remage LH5 output (Geant4 GEANT4_USE_HDF5=ON); ships the C++ libs remage needs
+brew "opencascade"   # pyg4ometry CAD import: its pyoce extensions in ~/venvs/v link this
+brew "pixi"          # pixi/remage (remage 1.1, HDF5/LH5) + pixi/geant4 (Geant4 11.4 Qt, ROOT, compilers)
 
 # ── python / jupyter ───────────────────────────────────────────
 brew "pipx"          # standalone CLI tools only (black); NOT jupyter

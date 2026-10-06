@@ -1,0 +1,20 @@
+[workspace]
+authors = ["Tensor <physmath99@gmail.com>"]
+channels = ["conda-forge"]
+name = "geant4"
+# macOS >= 14: the Qt build of Geant4 needs qt6-main 6.12 -> moltenvk -> __osx >= 14
+platforms = [
+  { name = "mac-arm64", platform = "osx-arm64", macos = "14.0" },
+  { name = "mac-intel", platform = "osx-64",    macos = "14.0" },
+]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+geant4 = { version = "==11.4.3", build = "qt*" }   # qt_* variant: Qt UI + OpenGL vis (noqt_* is headless)
+root = "==6.40.4"
+cmake = ">=4.4.4,<5"
+make = ">=4.4.1,<5"
+cxx-compiler = ">=1.10.0,<2"
+expat = ">=2.8.5,<3"   # headers + dev symlink: Geant4Config.cmake find_dependency(EXPAT) needs them for your own builds

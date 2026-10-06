@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Configure + build a Geant4/ROOT CMake project against the pixi Geant4 env.
+#   g4build [SRC=.] [BUILD=build-pixi] [extra cmake -D args...]
+# $CONDA_PREFIX goes first on CMAKE_PREFIX_PATH so the env's ROOT/Geant4/expat win over Homebrew's.
+src=${1:-.}; bld=${2:-build-pixi}; shift $(( $# < 2 ? $# : 2 ))
+# Homebrew ROOT's thisroot.sh (sourced by .zshrc) exports these; inside a pixi env they would
+# make python import Homebrew's ROOT and cmake find Homebrew's libs instead of the env's own.
+unset PYTHONPATH ROOTSYS ROOT_INCLUDE_PATH DYLD_LIBRARY_PATH LD_LIBRARY_PATH LIBPATH SHLIB_PATH \
+      JUPYTER_PATH JUPYTER_CONFIG_PATH JUPYTER_CONFIG_DIR CMAKE_PREFIX_PATH
+exec pixi run --manifest-path "$HOME/Documents/mac-setup/pixi/geant4/pixi.toml" bash -c '
+  set -e; src=$1; bld=$2; shift 2
+  cmake -S "$src" -B "$bld" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" "$@"
+  cmake --build "$bld" -j"$(sysctl -n hw.ncpu)"' _ "$src" "$bld" "$@"

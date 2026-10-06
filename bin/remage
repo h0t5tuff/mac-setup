@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# remage / remage-cpp from the pixi workspace (conda-forge remage 1.1, HDF5/LH5 + ROOT output).
+# Runs through `pixi run`, so the env is activated (Geant4 data paths etc.) from any directory.
+# Symlinked into ~/.local/bin as `remage` and `remage-cpp`; dispatches on the name it was called by.
+# Homebrew ROOT's thisroot.sh (sourced by .zshrc) exports these; inside a pixi env they would
+# make python import Homebrew's ROOT and cmake find Homebrew's libs instead of the env's own.
+unset PYTHONPATH ROOTSYS ROOT_INCLUDE_PATH DYLD_LIBRARY_PATH LD_LIBRARY_PATH LIBPATH SHLIB_PATH \
+      JUPYTER_PATH JUPYTER_CONFIG_PATH JUPYTER_CONFIG_DIR CMAKE_PREFIX_PATH
+exec pixi run --manifest-path "$HOME/Documents/mac-setup/pixi/remage/pixi.toml" "$(basename "$0")" "$@"
