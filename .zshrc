@@ -17,6 +17,7 @@ parse_git_status() {
   echo "%F{blue}[$branch $dirty$ahead$behind]%f"
 }
 setopt prompt_subst
+setopt interactive_comments   # `# ...` in pasted commands is a comment, not an argument
 
 # ╭─────────────────────────╮
 # |        Prompt           |
