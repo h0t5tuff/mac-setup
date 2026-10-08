@@ -39,6 +39,8 @@ IdentityFile ~/.ssh/id_ed25519_daqbacon
 
 Host nersc
 HostName perlmutter.nersc.gov
+
+Host nersc perlmutter*.nersc.gov dtn*.nersc.gov
 User tens0r
 IdentityFile ~/.ssh/nersc
 CertificateFile ~/.ssh/nersc-cert.pub
