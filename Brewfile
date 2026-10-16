@@ -5,7 +5,7 @@
 
 # ── core / pinned ──────────────────────────────────────────────
 brew "python@3.14"   # pinned shell python (HOMEBREW_PYTHON in .zshrc), venv ~/venvs/v
-brew "libtorrent-rasterbar"   # py3.14 bindings for ~/venvs/torrent (PyPI libtorrent has no 3.14 wheels)
+brew "libtorrent-rasterbar"   # Python bindings for `torrent` (built for Homebrew's default python3)
 brew "gsl"           # ROOT dependency
 brew "pkgconf"
 brew "cmake"

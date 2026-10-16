@@ -215,7 +215,7 @@ else
   else
     warn "python3 not under HOMEBREW_PYTHON — PATH shadowing?"
   fi
-  if [[ ${Python3_EXECUTABLE:-} == $hb_python/bin/python3 ]]; then
+  if [[ ${Python3_EXECUTABLE:-} == $hb_python/libexec/bin/python3 && -x ${Python3_EXECUTABLE:-} ]]; then
     pass "Python3_EXECUTABLE wired for cmake"
   else
     warn "Python3_EXECUTABLE = ${Python3_EXECUTABLE:-unset}"
@@ -248,6 +248,17 @@ if command -v jupyter-lab >/dev/null 2>&1; then
   warn "jupyter-lab on PATH ($(command -v jupyter-lab)) shadows the venv copy"
 else
   pass "no competing jupyter-lab on PATH"
+fi
+
+section "🧲 torrent"
+# Homebrew builds libtorrent's bindings for its default python3, not for HOMEBREW_PYTHON
+typeset brew_py3=${HOMEBREW_PREFIX:-/opt/homebrew}/bin/python3
+if [[ ! -f ~/Documents/T/torrent_dl.py ]]; then
+  warn "~/Documents/T/torrent_dl.py missing"
+elif $brew_py3 -c 'import libtorrent' >/dev/null 2>&1; then
+  pass "libtorrent imports in Homebrew's python3 ($($brew_py3 -V 2>&1 | cut -d' ' -f2))"
+else
+  fail "libtorrent not importable in $brew_py3 — torrent won't run"
 fi
 
 section "📦 pipx"
@@ -293,10 +304,12 @@ if (( ! quick )) && command -v root >/dev/null; then
   else
     fail "root failed to run a batch macro"
   fi
-  if python3 -c 'import ROOT' >/dev/null 2>&1; then
-    pass "PyROOT imports in python3"
+  # Homebrew builds ROOT (and libtorrent) for its default python3, not for HOMEBREW_PYTHON
+  typeset brew_py=${HOMEBREW_PREFIX:-/opt/homebrew}/bin/python3
+  if $brew_py -c 'import ROOT' >/dev/null 2>&1; then
+    pass "PyROOT imports in Homebrew's python3 ($($brew_py -V 2>&1 | cut -d' ' -f2))"
   else
-    warn "PyROOT not importable (Homebrew ROOT may target another python)"
+    warn "PyROOT not importable in $brew_py (ROOT built for Python $(root-config --python-version 2>/dev/null))"
   fi
 fi
 
@@ -495,8 +508,7 @@ check_lock() {  # check_lock <venv> <lockfile>
   (( drift )) && warn "${venv/#$HOME/~} drifted from ${lock:t} ($drift line(s)) — refresh with pip freeze" \
               || pass "${venv/#$HOME/~} matches venvs/${lock:t}"
 }
-check_lock ~/venvs/v       $repo/venvs/v.txt
-check_lock ~/venvs/torrent $repo/venvs/torrent.txt
+check_lock ~/venvs/v $repo/venvs/v.txt
 
 # ╭───────────────────────────────╮
 # │          🧾 Summary           │

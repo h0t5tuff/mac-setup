@@ -104,7 +104,7 @@ HOMEBREW_PYTHON=/opt/homebrew/opt/python@3.14
 use_homebrew_python() {
   [[ -d $HOMEBREW_PYTHON/bin ]] || return
   path=("$HOMEBREW_PYTHON/libexec/bin" "$HOMEBREW_PYTHON/bin" $path)
-  export Python3_EXECUTABLE="$HOMEBREW_PYTHON/bin/python3"
+  export Python3_EXECUTABLE="$HOMEBREW_PYTHON/libexec/bin/python3"   # bin/ only has python3.14 since 3.15 became brew's default
 }
 
 # ╭───────────────────────────────╮
@@ -158,7 +158,7 @@ amd64() {
 # ╭───────────────────────────────╮
 # │      ⚡ Default Env            │
 # ╰───────────────────────────────╮
-export PIPX_DEFAULT_PYTHON="$HOMEBREW_PYTHON/bin/python3"
+export PIPX_DEFAULT_PYTHON="$HOMEBREW_PYTHON/libexec/bin/python3"
 path+=("$HOME/.local/bin")
 # Jupyter lives in ~/venvs/v (not pipx/brew) — call it by path, no activation needed
 alias jn='~/venvs/v/bin/jupyter notebook'
@@ -185,8 +185,9 @@ fi
 # all four are `pixi run` wrappers in ~/.local/bin (mac-setup/bin), so they work from bash scripts too
 export G4VIS_DEFAULT_DRIVER=OGLSQt
 
-# legend-metadata (pylegendmeta / dbetto read $LEGEND_METADATA)
-export LEGEND_METADATA="$HOME/Documents/Legend-metadata"
+# legend-exp metadata: pylegendmeta / dbetto read $LEGEND_METADATA; LEGEND1000-Simulation's sim/hit.py reads $LEGEND1000_METADATA
+export LEGEND_METADATA="$HOME/Documents/legend-exp/Legend-metadata"
+export LEGEND1000_METADATA="$HOME/Documents/legend-exp/legend1000-metadata"
 
 # CMake hint: Homebrew ROOT (bacon2Data & co.). Inside the pixi Geant4 env, g4build puts
 # $CONDA_PREFIX first so its own ROOT/Geant4 win over these.
@@ -204,4 +205,5 @@ export ROOTDATA="$COMPILED/rootData"   # anacg input (per-run raw/sim waveforms)
 export CAENDATA="$COMPILED/caenData"   # anacg output / postAna + summary input
 path=("$BOBJ" "$COMPILED" "$BACONHOME/bacon2Data" $path)
 
-torrent() { ~/venvs/torrent/bin/python "$HOME/Library/Mobile Documents/com~apple~CloudDocs/MechaTronics/T/torrent_dl.py" "$@"; }
+# Homebrew's default python3 (not HOMEBREW_PYTHON): libtorrent-rasterbar builds its bindings for that one
+torrent() { "${HOMEBREW_PREFIX:-/opt/homebrew}/bin/python3" ~/Documents/T/torrent_dl.py "$@"; }

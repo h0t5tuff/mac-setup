@@ -1,54 +1,213 @@
 # mac-setup
 
-My macOS dev environment, version-controlled: Homebrew, Python venvs, the pixi physics
-stack (remage, Geant4, ROOT), shell, SSH and git. Follow **Set up a new Mac** top to
-bottom to rebuild it on another Mac (e.g. the work MacBook).
+My macOS dev environment, shared by the home and work MacBooks: shell, Homebrew, Python, the pixi
+physics stack (remage, Geant4, ROOT), SSH, git and Claude Code. The Python packages and the physics
+stack are pinned to exact versions; Homebrew installs whatever is current.
 
-## Before you start
+- [Use it](#use-it): every command, with examples
+- [Set up a new Mac](#set-up-a-new-mac): step by step
+- [Keep it reproducible](#keep-it-reproducible): what to update after installing anything
+- [Notes](#notes): why some things are the way they are
 
-- **Chip and macOS:** Apple menu → About This Mac. You need **Apple Silicon** (M1 or later)
-  and **macOS 14 or newer**. On an Intel Mac, read [Intel Macs](#intel-macs) first.
-- **Disk:** ~35 GB free (pixi envs ~20 GB, MacTeX ~10 GB, Homebrew the rest).
-- **Admin password:** Homebrew and the MacTeX/XQuartz installers ask for it.
-- **From the old Mac**, have these ready (AirDrop or USB stick):
-  - SSH private keys from `~/.ssh/`: `id_ed25519_github`, `id_ed25519_cern`,
-    `id_ed25519_daqTensor`, `id_ed25519_daqbacon` — only the hosts you need on this Mac.
-    For GitHub you can make a fresh key instead (step 7).
-  - Optional: VS Code `~/Library/Application Support/Code/User/settings.json`
-    (or turn on VS Code Settings Sync).
+## What's where
 
-Budget 1–2 hours, mostly downloads (step 3 and step 6).
+`~/Documents` syncs through iCloud, so this repo, the projects and `claude-shared` appear on both Macs
+by themselves. Everything else in the table is installed separately on each Mac (see the setup steps).
+
+| what | lives in | defined by |
+| --- | --- | --- |
+| zsh config | `~/.zshrc` → symlink to `.zshrc` here | `.zshrc` |
+| SSH hosts | `~/.ssh/config` → symlink to `config` here | `config` (keys: copied by hand) |
+| git identity | `~/.gitconfig` → symlink to `gitconfig` here | `gitconfig` |
+| health check | `~/.local/bin/sanity` → `sanity` here | `sanity` |
+| Homebrew formulae, apps, VS Code extensions | `/opt/homebrew`, `/Applications` | `Brewfile` |
+| Python venv `v` (Jupyter, LEGEND, analysis) | `~/venvs/v` | `venvs/v.txt` (exact versions) |
+| `torrent` script | `~/Documents/T/` (iCloud) | `.zshrc` runs it |
+| remage | `~/Library/Caches/rattler` | `pixi/remage/` (exact lock) |
+| Geant4 + ROOT for your own apps | `~/Library/Caches/rattler` | `pixi/geant4/` (exact lock) |
+| `remage`, `remage-cpp`, `g4`, `g4build` | `~/.local/bin` → `bin/` here | `bin/` |
+| Claude Code instructions + memory | `~/Documents/claude-shared` (iCloud) | step 9 |
+
+Edits to the symlinked files are live immediately, on both Macs.
+
+---
+
+## Use it
+
+### Everyday commands
+
+| command | what it does |
+| --- | --- |
+| `sanity` | checks the whole setup; `--quick` skips the slow tests, `--net` also tests SSH logins |
+| `werb` | Homebrew maintenance: update, upgrade, autoremove, cleanup, doctor |
+| `jl` / `jn` | JupyterLab / Jupyter Notebook from `~/venvs/v` |
+| `venv` | activate `~/venvs/v` in this shell (`deactivate` to leave) |
+| `r file.root` | open a ROOT file in a TBrowser |
+| `torrent "magnet:…"` | download a torrent to `~/Downloads` (see [Torrents](#torrents)) |
+| `dds` / `dss` | long listing, oldest first; `dss` adds folder size and entry counts |
+
+### Torrents
+
+`torrent` downloads magnet links or `.torrent` files into `~/Downloads`, shows live progress, and exits
+when everything is complete.
+
+```sh
+torrent "magnet:?xt=urn:btih:..."                     # always quote magnets (zsh treats ? as a wildcard)
+torrent ~/Downloads/file.torrent
+torrent "magnet:?xt=..." "magnet:?xt=..."             # several at once, one progress line each
+torrent --sequential "magnet:?xt=..."                 # pieces in order: start watching a video early
+torrent --proxy socks5://host:1080 "magnet:?xt=..."   # route all traffic through a SOCKS5 proxy
+```
+
+| option | effect |
+| --- | --- |
+| `--sequential` | download pieces in order instead of rarest-first |
+| `--seed-time S` | keep uploading for `S` seconds after finishing (default 0: stop immediately) |
+| `--proxy socks5://[user:pass@]host:port` | all peer, tracker and DNS traffic through the proxy; stops instead of leaking if the proxy drops |
+| `--no-dht` | trackers only, no DHT (magnets then need a working tracker) |
+
+- **Progress line:** name, %, done/total, download and upload speed, peers, ETA, state.
+- **Stop:** `Ctrl-C`. Partial files stay in `~/Downloads`. Rerun the same command to resume: it rechecks
+  what's there and fetches only the rest.
+- **Privacy:** without `--proxy`, other peers see your IP address; that's how BitTorrent works. The
+  defaults only cut extra exposure: random port, encrypted connections only, no router port mapping
+  (UPnP/NAT-PMP), no LAN broadcast.
+- **Where it lives:** the script and its notes are in `~/Documents/T/`. It runs on Homebrew's own
+  `python3`, because that's the Python Homebrew builds libtorrent for.
+
+### Physics: remage and Geant4
+
+Both run inside pixi environments. The commands below handle activation, so they work from any folder
+and from bash scripts.
+
+**remage** (1.1.0: Geant4 11.3.2, multithreaded, GDML, BxDecay0, LH5 and ROOT output):
+
+```sh
+remage -t 8 -m -g geom.gdml -o out.lh5 -- run.mac   # 8 threads; -m merges the per-thread output files
+remage -t 8 -w -g geom.gdml -o out.root -- run.mac  # -w overwrites an existing output file
+remage-cpp --version-rich                           # build details of the engine
+```
+
+`remage` exits with code 2 when it printed warnings. In scripts that check the exit code, add
+`--ignore-warnings`.
+
+**Your own Geant4 apps** (Geant4 11.4.3 with the Qt viewer, ROOT 6.40.04, cmake, compilers):
+
+```sh
+cd ~/Documents/BACONCalibrationSimulation
+g4build                                  # configure + build . into build-pixi/
+g4build . build-pixi -DSOME_OPTION=ON    # extra cmake options need both folders given first
+g4 ./build-pixi/<app>                    # run it (opens the Qt viewer if the app uses one)
+g4 ./build-pixi/<app> run.mac            # run a macro in batch
+g4 root -l out.root                      # any command inside the env: root, python, geant4-config, …
+```
+
+For an interactive shell inside the env: `pixi shell --manifest-path ~/Documents/mac-setup/pixi/geant4/pixi.toml`
+(`exit` to leave).
+
+LEGEND metadata: `$LEGEND_METADATA` → `~/Documents/legend-exp/Legend-metadata` (pylegendmeta) and
+`$LEGEND1000_METADATA` → `~/Documents/legend-exp/legend1000-metadata` (LEGEND1000-Simulation's `sim/hit.py`).
+
+**Geant4 examples** aren't included in the conda package. Fetch the ones matching 11.4.3 when needed:
+
+```sh
+git clone --depth 1 --branch v11.4.3 --filter=blob:none --sparse https://github.com/Geant4/geant4.git ~/Downloads/geant4-v11.4.3
+git -C ~/Downloads/geant4-v11.4.3 sparse-checkout set examples
+cd ~/Downloads/geant4-v11.4.3/examples/basic/B1 && g4build && g4 ./build-pixi/exampleB1 exampleB1.in
+```
+
+### Python and Jupyter
+
+- **Python 3.14** (Homebrew `python@3.14`) is your Python: `python3`, `~/venvs/v` and pipx all use it.
+- **Homebrew's default Python** (currently 3.15, `/opt/homebrew/bin/python3`) is the one Homebrew builds
+  ROOT's and libtorrent's Python bindings for. So `import ROOT` works with `/opt/homebrew/bin/python3`,
+  or with `g4 python` (the pixi env's own ROOT), but not in plain `python3` or `~/venvs/v`.
+- **`~/venvs/v`** has Jupyter plus the LEGEND and analysis packages. In Jupyter or VS Code, pick the
+  kernel **Python 3.14 (v)**. Install into it with `~/venvs/v/bin/pip install …`, then refresh the lock
+  (see [Keep it reproducible](#keep-it-reproducible)).
+- **pipx** is only for standalone command-line tools (currently `black`): `pipx install <tool>`.
+- Never `pip install` into Homebrew's Python itself.
+- LEGEND packages import under different names: `legend-pygeom-hpges` → `pygeomhpges`,
+  `legend-pygeom-optics` → `pygeomoptics`, `legend-pygeom-tools` → `pygeomtools`.
+- Export a notebook to PDF: `~/venvs/v/bin/jupyter nbconvert --to webpdf notebook.ipynb`.
+
+### SSH and file transfer
+
+| host | connects to | key |
+| --- | --- | --- |
+| `ssh github.com` | GitHub (account h0t5tuff) | `~/.ssh/id_ed25519_github` |
+| `ssh daqTensor` | DAQ machine 64.106.63.220 as `Tensor` | `~/.ssh/id_ed25519_daqTensor` |
+| `ssh daqbacon` | DAQ machine as `bacon` | `~/.ssh/id_ed25519_daqbacon` |
+| `ssh nersc` | Perlmutter as `tens0r` | `~/.ssh/nersc` + `nersc-cert.pub` (24-hour certificate) |
+| `ssh cern` | lxplus as `melmikaw` (asks for 2FA from outside CERN) | `~/.ssh/id_ed25519_cern` |
+
+Connections are reused for 12 hours, so after the first login (and 2FA) further `ssh`/`scp` to the same
+host are instant.
+
+- **NERSC certificate:** expires daily. Renew with NERSC's `sshproxy.sh -u tens0r` (password + OTP;
+  download the script from the NERSC docs, *Connecting → MFA*). It writes `~/.ssh/nersc` and `nersc-cert.pub`.
+
+| command | copies |
+| --- | --- |
+| `scpbm file` | `file` → `daqTensor:/home/bacon/BaconMonitor/` |
+| `scpdaq /path/on/daq/file.root` | that file from the DAQ to the current folder (makes it readable first, asks for sudo there) |
+| `scpdaqposts` | all `post-*.root` from the DAQ's `bacon2Data/compiled` to the current folder |
+| `scpdqcpdfs <period> <run>` | LEGEND data-monitor PDFs from NERSC → iCloud `0νββ/legend shifts/<period>_<run>` |
+| `scppng <dir>` | all PNGs in NERSC `…/Tensor/shifter/<dir>` → iCloud `Downloads/<dir>` |
+
+### LaTeX
+
+Write in VS Code with the LaTeX Workshop extension: saving builds the PDF, and `tex-fmt` formats the
+source. MacTeX provides `pdflatex`, `latexmk` and the rest in `/Library/TeX/texbin`.
+
+### Claude Code
+
+Claude's global instructions (`~/Documents/claude-shared/CLAUDE.md`) and its memory
+(`~/Documents/claude-shared/memory/`, one pool for all projects) live in iCloud, so both Macs see the
+same ones. Each Mac's `~/.claude` stays local (chat history, sessions) and only points at the shared
+folder (step 9).
+
+---
 
 ## Set up a new Mac
 
-Run everything in Terminal (zsh, the macOS default), in order. Commands in one block can
-be pasted together.
+You need **Apple Silicon** and **macOS 14 or newer** (Apple menu → About This Mac; for Intel see
+[Notes](#intel-macs)), ~35 GB free, and your admin password. Budget 1–2 hours, mostly downloads.
+From the old Mac, bring the SSH private keys you need (AirDrop or USB stick).
 
-### 1. Command-line tools + Homebrew
+Run each block in Terminal, in order. Each step ends with a ✔ check.
+
+### 1. Command-line tools and Homebrew
 
 ```sh
 xcode-select --install
 ```
 
-A dialog opens — click Install and wait until it finishes. Then:
+Click Install in the dialog and wait for it to finish. Then:
 
 ```sh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv)"
 ```
 
-Ignore Homebrew's "Next steps" about `~/.zprofile`: this repo's `.zshrc` does that job.
+Skip Homebrew's "Next steps": this repo's `.zshrc` takes care of them.
 
 ✔ `brew --version` prints a version.
 
-### 2. Clone this repo and link the dotfiles
+### 2. This repo and the dotfile links
 
-Any existing `~/.zshrc`, `~/.ssh/config` or `~/.gitconfig` is kept as `*.backup`.
+With iCloud Desktop & Documents sync on, wait until `~/Documents/mac-setup` has downloaded. Without
+it, clone the repo instead:
 
 ```sh
-mkdir -p ~/Documents ~/.ssh ~/.local/bin && chmod 700 ~/.ssh
-cd ~/Documents && git clone https://github.com/h0t5tuff/mac-setup.git
+mkdir -p ~/Documents && git clone https://github.com/h0t5tuff/mac-setup.git ~/Documents/mac-setup
+```
+
+Then link the dotfiles. Any existing real `~/.zshrc`, `~/.ssh/config` or `~/.gitconfig` is kept as `*.backup`.
+
+```sh
 REPO=~/Documents/mac-setup
+mkdir -p ~/.ssh ~/.local/bin && chmod 700 ~/.ssh
 for f in ~/.zshrc ~/.ssh/config ~/.gitconfig; do [ -f $f ] && [ ! -L $f ] && mv $f $f.backup; done
 ln -sfn "$REPO/.zshrc"    ~/.zshrc
 ln -sfn "$REPO/config"    ~/.ssh/config
@@ -58,34 +217,36 @@ ln -sfn ~/sanity          ~/.local/bin/sanity
 for b in remage remage-cpp g4 g4build; do ln -sfn "$REPO/bin/$b" ~/.local/bin/$b; done
 ```
 
+In Finder, right-click `~/Documents/mac-setup` → **Keep Downloaded**, so iCloud never offloads it.
+
 ✔ `ls -l ~/.zshrc` points into `~/Documents/mac-setup`.
 
-### 3. Install everything from Homebrew
+### 3. Everything from Homebrew
 
 ```sh
 brew bundle --file "$REPO/Brewfile"
 ```
 
-Formulae (Python 3.14, ROOT, pixi, cmake, …), apps (VS Code, MacTeX, XQuartz) and the VS Code
-extensions. Takes a while (MacTeX is several GB) and asks for your password once or twice.
+Installs the formulae (Python 3.14, ROOT, pixi, cmake, ffmpeg, …), the apps (VS Code, MacTeX, XQuartz)
+and the VS Code extensions. It asks for your password once or twice.
 
 ✔ `brew bundle check --file "$REPO/Brewfile"` says `The Brewfile's dependencies are satisfied.`
 
 ### 4. Open a new terminal window
 
-The new window loads `.zshrc`: Homebrew, Python 3.14 and ROOT get set up. **Run all
-remaining steps in this new window.**
+The new window loads `.zshrc` (Homebrew, Python 3.14, ROOT). **Do every remaining step in it.**
 
 ```sh
 REPO=~/Documents/mac-setup
 pipx install black
 ```
 
-✔ `which python3` → `/opt/homebrew/opt/python@3.14/…` and `root-config --version` prints a version.
+✔ `which python3` starts with `/opt/homebrew/opt/python@3.14/`, `root-config --version` prints a version,
+and `torrent --help` prints its options.
 
-### 5. Python venvs
+### 5. Python venv
 
-`~/venvs/v` holds Jupyter and the LEGEND/analysis stack:
+`~/venvs/v`, with exact package versions from the lock file:
 
 ```sh
 PY=/opt/homebrew/opt/python@3.14/bin/python3.14
@@ -93,15 +254,6 @@ $PY -m venv ~/venvs/v
 ~/venvs/v/bin/pip install -r "$REPO/venvs/v.txt"
 ~/venvs/v/bin/python -m ipykernel install --user --name v --display-name "Python 3.14 (v)"
 ~/venvs/v/bin/playwright install chromium
-```
-
-`~/venvs/torrent` gets libtorrent from Homebrew, linked in by hand:
-
-```sh
-$PY -m venv ~/venvs/torrent
-ln -s /opt/homebrew/lib/python3.14/site-packages/libtorrent.cpython-314-darwin.so \
-      "$(~/venvs/torrent/bin/python -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])')/"
-~/venvs/torrent/bin/pip install -r "$REPO/venvs/torrent.txt"
 ```
 
 ✔ `jl` opens JupyterLab with a **Python 3.14 (v)** kernel.
@@ -113,79 +265,70 @@ ln -s /opt/homebrew/lib/python3.14/site-packages/libtorrent.cpython-314-darwin.s
 (cd "$REPO/pixi/geant4" && pixi install --locked)
 ```
 
-`--locked` installs exactly what `pixi.lock` lists (Geant4 datasets included) and stops if the
-lock doesn't match `pixi.toml`.
+`--locked` installs exactly what `pixi.lock` lists, Geant4 data included, and refuses if the lock is out of date.
 
 ✔ `remage --help` prints usage, and `g4 geant4-config --version` prints `11.4.3`.
 
 ### 7. SSH keys
 
-Move the keys you brought into `~/.ssh/` and lock down their permissions. AirDrop puts them in
-`~/Downloads`; change the path if they're somewhere else.
+Move the keys you brought into `~/.ssh` and restrict them. AirDrop puts them in `~/Downloads`:
 
 ```sh
 mv ~/Downloads/id_ed25519_* ~/.ssh/
 chmod 600 ~/.ssh/id_ed25519_*
 ```
 
-Or, for GitHub only, make a fresh key and add it to your account:
+Or, for GitHub, make a new key and add it at github.com → Settings → SSH and GPG keys → New SSH key:
 
 ```sh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_github
 pbcopy < ~/.ssh/id_ed25519_github.pub
 ```
 
-Then paste it at github.com → Settings → SSH and GPG keys → New SSH key.
+Test it, and answer `yes` to the host-key question. A key's passphrase is asked once, then kept in the Keychain:
 
 ```sh
 ssh -T git@github.com
 ```
 
-Answer `yes` to the host-key question. If the key has a passphrase, it's asked once and then
-kept in the Keychain.
+For NERSC, don't copy the key: renew it with `sshproxy.sh` (see [SSH](#ssh-and-file-transfer)). A new
+CERN key must be registered in the CERN account portal.
 
 ✔ `Hi h0t5tuff! You've successfully authenticated…`
 
-NERSC and CERN need extra steps. See the [SSH](#ssh) section.
+### 8. Projects
 
-### 8. Clone and build the projects
+With iCloud sync, the projects are already in `~/Documents`. Without it, clone them. `legend-metadata`
+is private and needs the GitHub key from step 7.
 
 ```sh
 cd ~/Documents
 git clone https://github.com/h0t5tuff/LEGEND1000-Simulation.git
-git clone --recurse-submodules git@github.com:legend-exp/legend-metadata.git Legend-metadata
 git clone -b runTwo https://github.com/liebercanis/bacon2Data.git
 git clone https://github.com/aleder/BACONCalibrationSimulation.git
-mkdir -p GEANT4 && git clone https://github.com/MustafaSchmidt/geant4-11-tutorial.git GEANT4/geant4-11-tutorial
+mkdir -p legend-exp && cd legend-exp
+git clone --recurse-submodules git@github.com:legend-exp/legend-metadata.git Legend-metadata
+git clone https://github.com/legend-exp/legend1000-metadata.git
+git clone https://github.com/legend-exp/legend-simflow.git
+git clone https://github.com/legend-exp/optmapper.git
 ```
 
-`legend-metadata` is private (LEGEND GitHub access) and its submodules come over SSH, so it
-needs step 7.
-
-**bacon2Data** is built against Homebrew ROOT. Run `make clean` first: the repo carries
-x86_64 `.o`/`.so` files that `make` would otherwise treat as up to date. Afterwards `git status`
-shows them as modified, which is expected.
+Build bacon2Data (against Homebrew ROOT) and BACONCalibrationSimulation (against pixi Geant4). Run
+`make clean` first: the bacon2Data repo contains old Intel build files that `make` would otherwise reuse.
 
 ```sh
 cd ~/Documents/bacon2Data
 ln -sfn /opt/homebrew/opt/root/etc/root/Makefile.arch bobj/Makefile.arch
 make -C bobj clean && make -C bobj
 make -C compiled clean && make -C compiled
-```
-
-The **Geant4 apps** are built against `pixi/geant4`:
-
-```sh
 cd ~/Documents/BACONCalibrationSimulation && g4build
-cd ~/Documents/GEANT4/geant4-11-tutorial && g4build
 ```
 
-✔ `file ~/Documents/bacon2Data/bobj/libBaconAna.so` says `arm64`, and each Geant4 app has a `build-pixi/` folder.
+✔ `file ~/Documents/bacon2Data/bobj/libBaconAna.so` says `arm64`.
 
-### 9. Claude Code memory
+### 9. Claude Code
 
-Install the Claude desktop app from claude.ai/download. Claude's global instructions and memory live
-in iCloud (`~/Documents/claude-shared`), so both Macs share them. Point a local `~/.claude` at them:
+Install the Claude desktop app from claude.ai/download, then point it at the shared instructions and memory:
 
 ```sh
 mkdir -p ~/.claude
@@ -193,11 +336,10 @@ printf '{\n  "autoMemoryDirectory": "~/Documents/claude-shared/memory"\n}\n' > ~
 echo '@~/Documents/claude-shared/CLAUDE.md' > ~/.claude/CLAUDE.md
 ```
 
-If `~/.claude/settings.json` already exists, add the `autoMemoryDirectory` line to it instead of
-overwriting it. In Finder, right-click `~/Documents/claude-shared` → **Keep Downloaded**.
+If `~/.claude/settings.json` already exists, add the `autoMemoryDirectory` line to it instead. In Finder,
+right-click `~/Documents/claude-shared` → **Keep Downloaded**.
 
-✔ In a new Claude Code session, ask "where is your memory directory?". It should name
-`~/Documents/claude-shared/memory`.
+✔ In a new Claude Code session, "where is your memory directory?" names `~/Documents/claude-shared/memory`.
 
 ### 10. Check
 
@@ -205,187 +347,68 @@ overwriting it. In Finder, right-click `~/Documents/claude-shared` → **Keep Do
 sanity
 ```
 
-On the old Mac this is all ✅. On a new Mac, expect only these:
+Everything should be ✅, except ❌ `key missing` for SSH keys you chose not to copy.
 
-- ❌ `key missing` for SSH keys you didn't copy — fine if you don't need that host.
-- ⚠️ for projects you didn't clone.
+---
 
-## Keeping it reproducible
+## Keep it reproducible
 
-After installing or upgrading anything, update the matching file here and commit:
+After installing or upgrading anything, record it here, then run `sanity`. Its *Reproducible from repo*
+section flags anything installed that the repo doesn't know about.
 
-| changed                       | update                                                                            |
-| ----------------------------- | --------------------------------------------------------------------------------- |
-| brew formula / cask / VS Code extension | add it to `Brewfile`; `brew bundle cleanup --file "$REPO/Brewfile"` lists strays |
-| `~/venvs/v` packages          | `~/venvs/v/bin/pip freeze > venvs/v.txt`, then re-add the two header lines         |
-| `~/venvs/torrent` packages    | `~/venvs/torrent/bin/pip freeze > venvs/torrent.txt`, then re-add the header line  |
-| pixi packages                 | edit `pixi/<ws>/pixi.toml`, run `pixi install` there — it rewrites `pixi.lock`     |
+| you changed | record it with |
+| --- | --- |
+| a Homebrew formula, app or VS Code extension | add a line to `Brewfile`; `brew bundle cleanup --file Brewfile` lists anything installed but not listed |
+| packages in `~/venvs/v` | `~/venvs/v/bin/pip freeze > venvs/v.txt`, then put back the two `#` header lines |
+| a pixi package | edit `pixi/<name>/pixi.toml`, run `pixi install` in that folder (it rewrites `pixi.lock`) |
 
-`sanity`'s *Reproducible from repo* section reports Brewfile and venv drift. The pixi envs
-can't drift: `pixi run` always syncs them to `pixi.lock`.
+After `werb`:
 
-## What lives where
+- **ROOT upgraded:** rebuild bacon2Data (step 8); its binaries record ROOT's versioned path. Upgrade
+  both Macs together, because the rebuilt binaries are shared through iCloud.
+- **Homebrew moved to a new default Python** (as 3.14 → 3.15 in October 2026): PyROOT and `torrent`
+  follow it automatically. Your `python3`, `~/venvs/v` and pipx stay on 3.14 until you move them
+  yourself, which needs every package in `v.txt` to have wheels for the new version.
 
-| repo file                                | symlinked to                      |
-| ---------------------------------------- | --------------------------------- |
-| `.zshrc`                                 | `~/.zshrc`                        |
-| `config`                                 | `~/.ssh/config`                   |
-| `gitconfig`                              | `~/.gitconfig`                    |
-| `sanity`                                 | `~/sanity`, `~/.local/bin/sanity` |
-| `bin/{remage,remage-cpp,g4,g4build}`     | `~/.local/bin/…`                  |
+---
 
-Symlinked means edits in this repo go live instantly.
+## Notes
 
-| layer                                   | source of truth                           |
-| --------------------------------------- | ----------------------------------------- |
-| Homebrew formulae, casks, VS Code exts  | `Brewfile`                                |
-| `~/venvs/v` (Jupyter + LEGEND stack)    | `venvs/v.txt` (exact `pip freeze` lock)   |
-| `~/venvs/torrent`                       | `venvs/torrent.txt` + step 5              |
-| pipx apps                               | step 4 (`black`)                          |
-| remage, Geant4 (+ ROOT for own apps)    | `pixi/remage`, `pixi/geant4` (exact lock) |
-| shell, SSH, git                         | the symlinked files above                 |
-| physics projects                        | step 8                                    |
-| Claude Code instructions + memory       | `~/Documents/claude-shared` (iCloud) + step 9 |
+**Python.** `python3`, `~/venvs/v` and pipx share one pinned Python (3.14), so they stay compatible when
+Homebrew changes its default. Jupyter is installed inside `~/venvs/v`, not with pipx or brew, so the
+notebook frontend and the kernel share one `ipywidgets` install; the earlier split setups left widgets
+blank. The pixi environments carry their own Python and stay invisible outside `pixi run`/`pixi shell`.
 
-`~/.claude` itself stays local on each Mac: chat history, sessions and lock files are per machine.
-Only `claude-shared` (global `CLAUDE.md` + `memory/`, one pool for all projects) syncs.
+**torrent** runs on Homebrew's default `python3`, which already has Homebrew's libtorrent bindings.
+That needs no venv and survives Homebrew's Python upgrades. The previous `~/venvs/torrent` linked in the
+bindings for one Python version and broke when Homebrew moved to 3.15.
 
-VS Code installed by hand before brew counts as satisfied when its `.app` is already in
-`/Applications`; a new Mac gets it from the Brewfile.
+**pyg4ometry** (CAD import in `~/venvs/v`) links Homebrew's OpenCASCADE 7.9 at runtime. If an upgrade
+moves OpenCASCADE to a new version, CAD import breaks until pyg4ometry catches up; check with
+`~/venvs/v/bin/python -c "import pyg4ometry.pyoce"`.
 
-## Python
+**pixi.** The environments live in `~/Library/Caches/rattler`, outside iCloud (`detached-environments`
+in each `.pixi/config.toml`). The details the setup depends on:
 
-**3.14 is the only Python.** It is `HOMEBREW_PYTHON`, backs `~/venvs/v`, and is
-what `python3` resolves to. pipx apps and `~/venvs/torrent` are built on it too.
-(The pixi environments carry their own conda-forge Python; they're isolated and
-never on `PATH` outside `pixi run`/`pixi shell`.) The few packages
-in Homebrew's global site-packages (numpy, tbb, xrootd, cryptography, …) are
-installed by brew formulae as dependencies — never `pip install` there.
+- remage 1.1 pins Geant4 11.3.2; your own apps get 11.4.3 from the separate `pixi/geant4` workspace.
+- `pixi/geant4` pins the Qt build of Geant4 (`qt_*`). It needs macOS 14, declared on the platform entries.
+- `expat` is listed in `pixi/geant4` because Geant4's CMake config needs its headers; without it CMake
+  picks up the macOS SDK's older expat and fails.
+- `g4build` puts the env first on `CMAKE_PREFIX_PATH`, so its ROOT and Geant4 win over Homebrew's.
+- Homebrew ROOT's `thisroot.sh` (loaded by `.zshrc`) exports `PYTHONPATH`, `ROOTSYS` and friends, which
+  would make the pixi env load Homebrew's ROOT. The `bin/` wrappers and `pixi shell` clear them.
+- `.zshrc` skips its PATH reset inside `pixi shell` (`$PIXI_IN_SHELL`), so the env's tools stay first.
 
-- **`~/venvs/torrent`** (used by the `torrent` shell function): PyPI's `libtorrent` has no
-  3.14 wheels, so the venv uses Homebrew's `libtorrent-rasterbar` bindings via the symlink in step 5.
-- **`pyg4ometry`** (in `~/venvs/v`): its macOS wheel links Homebrew's **OpenCASCADE 7.9**
-  (`libTK*.7.9.dylib`) at runtime. If brew moves OpenCASCADE to a new minor version, CAD import
-  breaks until pyg4ometry ships a matching wheel. Check with
-  `~/venvs/v/bin/python -c "import pyg4ometry.pyoce"`.
+**iCloud.** Git repos in `~/Documents` sometimes get iCloud conflict copies named `X 2` (for example
+`btbSim 2` after a rebuild). They are safe to delete. Large rebuildable things (venvs, pixi envs,
+Homebrew) are deliberately kept out of iCloud.
 
-### Jupyter lives in the venv
+**Not automated** (by hand on each Mac): SSH keys, VS Code settings (Settings Sync or copy
+`~/Library/Application Support/Code/User/settings.json`), the full Xcode app (only if needed),
+claude-science (own installer).
 
-JupyterLab and Notebook are installed **into `~/venvs/v`**, not via pipx or brew. The kernel
-already has `ipywidgets`, so putting the frontend in the same environment makes
-`jupyterlab_widgets` resolve by construction. Two earlier layouts are gone —
+### Intel Macs
 
-- `brew "jupyterlab"` — shadowed the pipx copy (`/opt/homebrew/bin` precedes
-  `~/.local/bin` on `PATH`), so the version you ran was never the one you configured.
-- `pipx install jupyterlab notebook` + `pipx inject … jupyterlab_widgets` — the
-  injects never took, so widgets rendered blank in both frontends.
-
-Launch with `jl` / `jn` (`.zshrc` aliases for `~/venvs/v/bin/jupyter lab|notebook`), or
-`venv` (activates `~/venvs/v`) and then `jupyter lab`. Keep pipx for standalone CLI tools
-like `black`, where env isolation is the point.
-
-LEGEND packages install under one name and import under another:
-`legend-pygeom-hpges` → `pygeomhpges`, `legend-pygeom-optics` → `pygeomoptics`,
-`legend-pygeom-tools` → `pygeomtools`.
-
-## LaTeX (VS Code, replaces Overleaf)
-
-`mactex-no-gui`, `tex-fmt` and the `latex-workshop` extension all come from the
-Brewfile. A new terminal has `/Library/TeX/texbin` on `PATH` (via `path_helper`):
-
-```sh
-pdflatex --version
-```
-
-## SSH
-
-`config` sets global defaults (keep-alive, multiplexing, Keychain agent, no
-GSSAPI/X11) plus one key per host:
-
-| host         | target                          | key                        |
-| ------------ | ------------------------------- | -------------------------- |
-| `github.com` | github.com                      | `id_ed25519_github`        |
-| `daqTensor`  | 64.106.63.220 · `Tensor`        | `id_ed25519_daqTensor`     |
-| `daqbacon`   | 64.106.63.220 · `bacon`         | `id_ed25519_daqbacon`      |
-| `nersc`      | perlmutter.nersc.gov · `tens0r` | `nersc` + `nersc-cert.pub` |
-| `cern`       | lxplus.cern.ch · `melmikaw`     | `id_ed25519_cern`          |
-
-Private keys never go in this repo. Keys need `chmod 600`; `~/.ssh` needs `700`.
-
-- **CERN:** a fresh key must be registered in the CERN account portal. lxplus still asks for
-  2FA from outside CERN.
-- **NERSC:** don't copy this key. It's a 24-hour certificate from `sshproxy.sh` (download it
-  from the NERSC docs, *Connecting → MFA*). Run `sshproxy.sh -u tens0r` (password + OTP), which
-  writes `~/.ssh/nersc` and `nersc-cert.pub`. Repeat it when the certificate expires.
-- `sanity --net` tests the github, daq and nersc connections.
-
-## Physics stack (pixi)
-
-remage and Geant4 come from conda-forge through two pixi workspaces — no source
-builds. Each has `pixi.toml` + an exact `pixi.lock` for Apple Silicon and Intel;
-`.pixi/config.toml` sets `detached-environments = true`, so the environments
-live in `~/Library/Caches/rattler`, not in `~/Documents` (iCloud).
-
-| workspace     | contents                                                                                     | commands               |
-| ------------- | -------------------------------------------------------------------------------------------- | ---------------------- |
-| `pixi/remage` | remage 1.1.0 (Geant4 11.3.2 MT, GDML, BxDecay0, **HDF5/LH5**) + `legend-pygeom-{tools,hpges,optics}` | `remage`, `remage-cpp` |
-| `pixi/geant4` | Geant4 11.4.3 **Qt** build, ROOT 6.40.04, cmake, compilers, expat headers — for your own apps | `g4`, `g4build`        |
-
-The commands are `pixi run` wrappers (`bin/`, symlinked into `~/.local/bin`), so
-activation (Geant4 data paths) is automatic and they work from bash scripts too.
-
-```sh
-remage -t 8 -m -g geom.gdml -o out.lh5 -- run.mac   # -m merges per-thread LH5 files; ROOT is merged anyway
-remage-cpp --version-rich                          # "ROOT CERN no" is fine: it only silences ROOT's stack traces
-g4build                                            # configure + build ./ into build-pixi/ against pixi/geant4
-g4 ./build-pixi/sim run.mac                        # run it inside the env
-```
-
-Pitfalls, all handled here:
-
-- `remage` exits **2** when warnings were printed — add `--ignore-warnings` where a script checks the exit code.
-- conda-forge ships Geant4 11.4.3 as `noqt_*` (headless) and `qt_*`; the manifest pins `qt_*`, which
-  needs macOS ≥ 14 — declared on the platform entries (`mac-arm64`, `mac-intel`).
-- `expat` is listed explicitly: Geant4's CMake config needs its headers; without them CMake picks the
-  macOS SDK's older expat and fails.
-- `g4build` puts `$CONDA_PREFIX` first on `CMAKE_PREFIX_PATH`, so the env's ROOT/Geant4 win over
-  Homebrew's — one C++ runtime per binary.
-- `.zshrc` skips its PATH reset inside `pixi shell` (`$PIXI_IN_SHELL`), so the env's tools stay first there.
-- Homebrew ROOT's `thisroot.sh` (sourced by `.zshrc`) exports `PYTHONPATH`, `ROOTSYS`, `CMAKE_PREFIX_PATH`, …;
-  left alone, `import ROOT` inside `pixi/geant4` loads *Homebrew's* ROOT. The `bin/` wrappers and
-  `pixi shell` (via `.zshrc`) clear them, so each env sees only its own ROOT.
-
-## Projects
-
-All in `~/Documents`, cloned and built in step 8:
-
-| project                       | repo                                         | built / run with                 |
-| ----------------------------- | -------------------------------------------- | -------------------------------- |
-| LEGEND1000-Simulation         | `h0t5tuff/LEGEND1000-Simulation`             | `remage`                         |
-| Legend-metadata               | `legend-exp/legend-metadata` (private)       | read via `$LEGEND_METADATA`      |
-| bacon2Data (branch `runTwo`)  | `liebercanis/bacon2Data`                     | Homebrew ROOT; `make` in `bobj/`, then `compiled/` |
-| BACONCalibrationSimulation    | `aleder/BACONCalibrationSimulation`          | `g4build`; run from a directory *next to* the repo (`fSTLFileDir` is `../BACONCalibrationSimulation/STLFiles/`) |
-| geant4-11-tutorial            | `MustafaSchmidt/geant4-11-tutorial` (in `GEANT4/`) | `g4build`, `g4 ./build-pixi/sim` |
-
-`.zshrc` exports `BACONHOME`, `BOBJ`, `COMPILED`, `ROOTDATA`, `CAENDATA` and
-`LEGEND_METADATA` for these paths. Source-build recipes for the old (pre-pixi)
-stack: `h0t5tuff/Physics-Simulation-Stack`.
-
-## Not automated (do by hand)
-
-- **SSH keys** — step 7 and [SSH](#ssh).
-- **VS Code settings** — not in this repo; Settings Sync, or copy `settings.json` (see *Before you start*).
-- **Xcode** (full app, App Store) — only if you need it; the command-line tools are enough for builds.
-- **claude-science** (`~/.local/bin/claude-science`) — installed by its own installer.
-- **`torrent`** — the script it runs lives in personal iCloud Drive (`MechaTronics/T/torrent_dl.py`),
-  so it only works on a Mac signed into that iCloud account.
-
-## Intel Macs
-
-The Brewfile and both `pixi.lock`s work on Intel. `.zshrc` is the gap: its `amd64()`
-only loads Homebrew, and `HOMEBREW_PYTHON` (`/opt/homebrew/opt/python@3.14`) and the ROOT setup
-are Apple Silicon paths. On Intel, Homebrew lives in `/usr/local`, so:
-
-- change those paths in `.zshrc` to `/usr/local/...`;
-- use `/usr/local/bin/brew` in step 1 and `/usr/local/opt/python@3.14/bin/python3.14` in step 5;
-- use `/usr/local/lib/python3.14/...` for the torrent symlink and `/usr/local/opt/root/...` for bacon2Data.
+The Brewfile and both pixi locks work on Intel. Homebrew lives in `/usr/local` there, so change the
+`/opt/homebrew` paths in `.zshrc` (`HOMEBREW_PYTHON` and the ROOT setup in `arm64()`) and in steps 1, 5 and 8.
+On Intel, `.zshrc`'s `amd64()` doesn't set up Python or ROOT at all, so that needs adding too.
