@@ -182,7 +182,24 @@ cd ~/Documents/GEANT4/geant4-11-tutorial && g4build
 
 ✔ `file ~/Documents/bacon2Data/bobj/libBaconAna.so` says `arm64`, and each Geant4 app has a `build-pixi/` folder.
 
-### 9. Check
+### 9. Claude Code memory
+
+Install the Claude desktop app from claude.ai/download. Claude's global instructions and memory live
+in iCloud (`~/Documents/claude-shared`), so both Macs share them. Point a local `~/.claude` at them:
+
+```sh
+mkdir -p ~/.claude
+printf '{\n  "autoMemoryDirectory": "~/Documents/claude-shared/memory"\n}\n' > ~/.claude/settings.json
+echo '@~/Documents/claude-shared/CLAUDE.md' > ~/.claude/CLAUDE.md
+```
+
+If `~/.claude/settings.json` already exists, add the `autoMemoryDirectory` line to it instead of
+overwriting it. In Finder, right-click `~/Documents/claude-shared` → **Keep Downloaded**.
+
+✔ In a new Claude Code session, ask "where is your memory directory?". It should name
+`~/Documents/claude-shared/memory`.
+
+### 10. Check
 
 ```sh
 sanity
@@ -228,6 +245,10 @@ Symlinked means edits in this repo go live instantly.
 | remage, Geant4 (+ ROOT for own apps)    | `pixi/remage`, `pixi/geant4` (exact lock) |
 | shell, SSH, git                         | the symlinked files above                 |
 | physics projects                        | step 8                                    |
+| Claude Code instructions + memory       | `~/Documents/claude-shared` (iCloud) + step 9 |
+
+`~/.claude` itself stays local on each Mac: chat history, sessions and lock files are per machine.
+Only `claude-shared` (global `CLAUDE.md` + `memory/`, one pool for all projects) syncs.
 
 VS Code installed by hand before brew counts as satisfied when its `.app` is already in
 `/Applications`; a new Mac gets it from the Brewfile.
